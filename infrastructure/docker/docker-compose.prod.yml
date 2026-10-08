@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pingio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${POSTGRES_DB:-pingio}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pingio} -d ${POSTGRES_DB:-pingio}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.auth
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-pingio}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-pingio}
+      ISSUER: ${AUTH_ISSUER:-https://auth.pingio.io}
+      AUDIENCE: ${AUTH_AUDIENCE:-pingio-relay}
+      RELAY_ID: ${RELAY_ID:-}
+      RELAY_URL: ${RELAY_URL:-wss://relay.pingio.io/ws}
+      TRUST_PROXY: 'true'
+      CORS_ORIGIN: ${CORS_ORIGIN:-false}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  relay:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.relay
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-pingio}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-pingio}
+      REDIS_URL: redis://redis:6379
+      AUTH_MODE: central
+      CENTRAL_AUTH_ISSUER: ${AUTH_ISSUER:-https://auth.pingio.io}
+      CENTRAL_AUTH_AUDIENCE: ${AUTH_AUDIENCE:-pingio-relay}
+      RELAY_ID: ${RELAY_ID:-}
+      TRUST_PROXY: 'true'
+      CORS_ORIGIN: ${CORS_ORIGIN:-false}
+      DEVICE_VERIFICATION_REQUIRED: ${DEVICE_VERIFICATION_REQUIRED:-false}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      AUTH_DOMAIN: ${AUTH_DOMAIN:-auth.pingio.io}
+      RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.pingio.io}
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      relay:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

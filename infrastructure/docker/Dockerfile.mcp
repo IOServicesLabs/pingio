@@ -1,0 +1,57 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy all workspace manifests + lockfile for reproducible installs
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/mcp-server/package.json packages/mcp-server/
+COPY packages/relay-server/package.json packages/relay-server/
+COPY packages/auth-server/package.json packages/auth-server/
+
+# Install dependencies (dev included — tsc is needed to build)
+RUN npm ci --workspace=@pingio/shared --workspace=@pingio/mcp-server --include-workspace-root=false
+
+# Copy source files
+COPY packages/shared packages/shared
+COPY packages/mcp-server packages/mcp-server
+
+# Build packages
+RUN npm run build --workspace=@pingio/shared \
+ && npm run build --workspace=@pingio/mcp-server
+
+# Production stage
+FROM node:20-alpine AS production
+
+# Init system: forward SIGTERM/SIGINT to node for graceful shutdown
+RUN apk add --no-cache dumb-init
+
+WORKDIR /app
+
+# Copy manifests + lockfile and install production deps only
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY packages/mcp-server/package.json packages/mcp-server/
+COPY packages/relay-server/package.json packages/relay-server/
+COPY packages/auth-server/package.json packages/auth-server/
+RUN npm ci --omit=dev --workspace=@pingio/shared --workspace=@pingio/mcp-server --include-workspace-root=false \
+ && npm cache clean --force
+
+# Copy built files
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/mcp-server/dist ./packages/mcp-server/dist
+
+# Set environment
+ENV NODE_ENV=production
+
+LABEL org.opencontainers.image.source="https://github.com/IOServicesLabs/pingio" \
+      org.opencontainers.image.title="pingio-mcp" \
+      org.opencontainers.image.description="Pingio MCP server — terminal messaging and agent collaboration client (stdio)"
+
+# Run as the unprivileged node user (config/identity lands in /home/node/.pingio)
+USER node
+
+# The MCP server speaks stdio — dist/server.js is the entrypoint
+# (dist/index.js is only the library barrel and starts nothing).
+ENTRYPOINT ["dumb-init", "--", "node", "packages/mcp-server/dist/server.js"]

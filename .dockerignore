@@ -1,0 +1,23 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies & build output (installed/built inside the image)
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+*.tsbuildinfo
+
+# Local test scaffolding
+.test-sessions
+
+# Env files (never baked into images)
+.env
+.env.*
+
+# Logs
+*.log
+
+# Local Claude Code settings
+.claude

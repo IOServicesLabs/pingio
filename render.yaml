@@ -1,0 +1,110 @@
+# Render Blueprint for Pingio (central auth + internet relay)
+# Deploy: create a new Render Blueprint from this repo and fill in the env vars below.
+services:
+  - type: redis
+    name: pingio-redis
+    ipAllowList: []
+    plan: starter
+
+  - type: pserv
+    name: pingio-postgres
+    runtime: docker
+    repo: https://github.com/render-examples/postgresql
+    envVars:
+      - key: POSTGRES_USER
+        generateValue: true
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        value: pingio
+    disk:
+      name: postgres_data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 5
+
+  - type: web
+    name: pingio-auth
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build --workspace=@pingio/shared && npm run build --workspace=@pingio/auth-server
+    startCommand: node packages/auth-server/dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        fromService:
+          name: pingio-postgres
+          type: pserv
+          property: connectionString
+      - key: ISSUER
+        value: https://pingio-auth.onrender.com
+      - key: AUDIENCE
+        value: pingio-relay
+      - key: RELAY_ID
+        generateValue: true
+      - key: RELAY_URL
+        value: wss://pingio-relay.onrender.com/ws
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: CORS_ORIGIN
+        value: 'false'
+      - key: DEVICE_VERIFICATION_REQUIRED
+        value: 'true'
+      - key: MAX_DEVICES_PER_USER
+        value: '5'
+      - key: TOKEN_EXPIRY_MINUTES
+        value: '60'
+      - key: REFRESH_TOKEN_EXPIRY_DAYS
+        value: '30'
+      - key: JWT_SECRET
+        generateValue: true
+
+  - type: web
+    name: pingio-relay
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build --workspace=@pingio/shared && npm run build --workspace=@pingio/relay-server
+    startCommand: node packages/relay-server/dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        fromService:
+          name: pingio-postgres
+          type: pserv
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: pingio-redis
+          type: redis
+          property: connectionString
+      - key: AUTH_MODE
+        value: central
+      - key: CENTRAL_AUTH_ISSUER
+        value: https://pingio-auth.onrender.com
+      - key: CENTRAL_AUTH_AUDIENCE
+        value: pingio-relay
+      - key: RELAY_ID
+        generateValue: true
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: CORS_ORIGIN
+        value: 'false'
+      - key: DEVICE_VERIFICATION_REQUIRED
+        value: 'true'
+      - key: MAX_DEVICES_PER_USER
+        value: '5'
+      - key: TOKEN_EXPIRY_MINUTES
+        value: '60'
+      - key: REFRESH_TOKEN_EXPIRY_DAYS
+        value: '30'

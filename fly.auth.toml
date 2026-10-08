@@ -1,0 +1,42 @@
+app = 'pingio-auth'
+primary_region = 'iad'
+
+[build]
+dockerfile = 'infrastructure/docker/Dockerfile.auth'
+
+[http_service]
+internal_port = 3001
+force_https = true
+auto_stop_machines = true
+auto_start_machines = true
+min_machines_running = 1
+processes = ['app']
+
+[[http_service.ports]]
+handlers = ['http']
+port = 80
+force_https = true
+
+[[http_service.ports]]
+handlers = ['tls']
+port = 443
+
+[env]
+NODE_ENV = 'production'
+PORT = '3001'
+HOST = '0.0.0.0'
+ISSUER = 'https://pingio-auth.fly.dev'
+AUDIENCE = 'pingio-relay'
+RELAY_ID = ''
+RELAY_URL = 'wss://pingio-relay.fly.dev/ws'
+TRUST_PROXY = 'true'
+CORS_ORIGIN = 'false'
+DEVICE_VERIFICATION_REQUIRED = 'true'
+MAX_DEVICES_PER_USER = '5'
+TOKEN_EXPIRY_MINUTES = '60'
+REFRESH_TOKEN_EXPIRY_DAYS = '30'
+
+# Provision Postgres separately, then attach:
+#   fly postgres create --name pingio-db
+#   fly postgres attach --app pingio-auth pingio-db
+#   fly secrets set --app pingio-auth JWT_SECRET=$(openssl rand -base64 32)

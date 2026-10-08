@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Turbo
+.turbo/
+
+# Test artifacts / coverage
+coverage/
+.test-sessions/
+
+# Env & secrets (keep .env.example tracked)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local Claude Code settings
+.claude/
+
+# Local scratch files
+chat-output.txt
+scrape_jobs.py

@@ -1,0 +1,35 @@
+{
+  "name": "pingio-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pingio — secure terminal messaging and agent collaboration over MCP",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:integration": "vitest run --config tests/integration/vitest.config.ts",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "setup:llms": "node scripts/setup-llms.mjs"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^11.12.0",
+    "@testcontainers/redis": "^11.12.0",
+    "testcontainers": "^10.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "ws": "^8.16.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.59.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

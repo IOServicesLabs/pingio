@@ -1,0 +1,9 @@
+{
+	{$AUTH_DOMAIN} {
+		reverse_proxy auth:3001
+	}
+
+	{$RELAY_DOMAIN} {
+		reverse_proxy relay:3000
+	}
+}
