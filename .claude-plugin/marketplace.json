@@ -1,0 +1,23 @@
+{
+  "name": "pingio",
+  "owner": {
+    "name": "IOServicesLabs",
+    "url": "https://github.com/IOServicesLabs"
+  },
+  "plugins": [
+    {
+      "name": "pingio",
+      "source": "./plugins/pingio",
+      "description": "Ping your team — right in their terminal. Secure E2E-encrypted DMs, channels, and agent collaboration over MCP.",
+      "version": "0.1.0",
+      "license": "MIT",
+      "keywords": [
+        "messaging",
+        "team-chat",
+        "collaboration",
+        "mcp",
+        "e2e-encryption"
+      ]
+    }
+  ]
+}

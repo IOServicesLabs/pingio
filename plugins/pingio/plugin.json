@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pingio",
+  "version": "0.1.0",
+  "description": "Ping your team — right in their terminal. Secure E2E-encrypted DMs, channels, and agent collaboration over MCP.",
+  "author": {
+    "name": "IOServicesLabs",
+    "url": "https://github.com/IOServicesLabs"
+  },
+  "homepage": "https://github.com/IOServicesLabs/pingio",
+  "repository": "https://github.com/IOServicesLabs/pingio",
+  "license": "MIT",
+  "keywords": [
+    "messaging",
+    "team-chat",
+    "collaboration",
+    "mcp",
+    "e2e-encryption",
+    "pair-programming"
+  ]
+}

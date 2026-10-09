@@ -124,8 +124,8 @@ Use the MCP server from the published npm package or from the local build. Add i
     "command": "npx",
     "args": ["-y", "@pingio/mcp-server"],
     "env": {
-      "LEMME_MODE": "cloud",
-      "LEMME_CLOUD_ENDPOINT": "https://auth.yourdomain.com"
+      "PINGIO_MODE": "cloud",
+      "PINGIO_CLOUD_ENDPOINT": "https://auth.yourdomain.com"
     }
   }
 }
@@ -262,17 +262,43 @@ ingress:
 
 This keeps your origin machine private while still exposing auth + relay through Cloudflare.
 
+## Claude Code / Codex Plugin
+
+The easiest way to use Pingio from Claude Code or Codex is the bundled plugin — it packages the MCP server, a usage skill for the agent, and `/pingio:setup` + `/pingio:status` slash commands (Claude Code).
+
+**Claude Code:**
+
+```text
+/plugin marketplace add IOServicesLabs/pingio
+/plugin install pingio@pingio
+```
+
+**Codex:**
+
+```text
+codex plugin marketplace add IOServicesLabs/pingio
+```
+
+then enable it in `~/.codex/config.toml`:
+
+```toml
+[plugins."pingio@pingio"]
+enabled = true
+```
+
+The plugin launcher runs the published `npx -y @pingio/mcp-server`, or a local build automatically when used from a clone (`npm run build --workspace=@pingio/shared --workspace=@pingio/mcp-server`, then `claude --plugin-dir ./plugins/pingio`). Details: [plugins/pingio/README.md](plugins/pingio/README.md). Validate the packaging with `npm run test:plugin`.
+
 ## MCP Client Configuration
 
 The MCP server reads configuration from `~/.pingio/config.json`. You can also seed it with environment variables:
 
 | Env var | Effect |
 |---|---|
-| `LEMME_MODE` | `cloud`, `self-hosted`, or `auto` |
-| `LEMME_CLOUD_ENDPOINT` | Base URL of the auth service (e.g. `https://auth.yourdomain.com`) |
-| `LEMME_CLOUD_RELAY_URL` | Optional override for the relay WebSocket URL |
-| `LEMME_SELF_HOSTED_RELAY_URL` | Relay URL in self-hosted mode (e.g. `ws://localhost:5000/ws`) |
-| `LEMME_ENABLE_LOCAL_P2P` | `true`/`false` — try LAN P2P before using the relay |
+| `PINGIO_MODE` | `cloud`, `self-hosted`, or `auto` |
+| `PINGIO_CLOUD_ENDPOINT` | Base URL of the auth service (e.g. `https://auth.yourdomain.com`) |
+| `PINGIO_CLOUD_RELAY_URL` | Optional override for the relay WebSocket URL |
+| `PINGIO_SELF_HOSTED_RELAY_URL` | Relay URL in self-hosted mode (e.g. `ws://localhost:5000/ws`) |
+| `PINGIO_ENABLE_LOCAL_P2P` | `true`/`false` — try LAN P2P before using the relay |
 
 Example Claude Desktop / Cursor / Windsurf config:
 
@@ -283,8 +309,8 @@ Example Claude Desktop / Cursor / Windsurf config:
       "command": "npx",
       "args": ["-y", "@pingio/mcp-server"],
       "env": {
-        "LEMME_MODE": "cloud",
-        "LEMME_CLOUD_ENDPOINT": "https://auth.yourdomain.com"
+        "PINGIO_MODE": "cloud",
+        "PINGIO_CLOUD_ENDPOINT": "https://auth.yourdomain.com"
       }
     }
   }
@@ -300,8 +326,8 @@ For self-hosted:
       "command": "npx",
       "args": ["-y", "@pingio/mcp-server"],
       "env": {
-        "LEMME_MODE": "self-hosted",
-        "LEMME_SELF_HOSTED_RELAY_URL": "ws://localhost:5000/ws"
+        "PINGIO_MODE": "self-hosted",
+        "PINGIO_SELF_HOSTED_RELAY_URL": "ws://localhost:5000/ws"
       }
     }
   }
@@ -606,11 +632,11 @@ stop_sharing_context(channelId=... | recipient="bob")             → revoke ear
 
 | Variable | Default | Description |
 |---|---|---|
-| `LEMME_MODE` | `auto` | `cloud`, `self-hosted`, or `auto` |
-| `LEMME_CLOUD_ENDPOINT` | — | Base URL of the central auth service |
-| `LEMME_CLOUD_RELAY_URL` | — | Optional override for the relay WebSocket URL |
-| `LEMME_SELF_HOSTED_RELAY_URL` | `ws://localhost:5000/ws` | Relay URL in self-hosted mode |
-| `LEMME_ENABLE_LOCAL_P2P` | `false` | Try LAN P2P before using the relay |
+| `PINGIO_MODE` | `auto` | `cloud`, `self-hosted`, or `auto` |
+| `PINGIO_CLOUD_ENDPOINT` | — | Base URL of the central auth service |
+| `PINGIO_CLOUD_RELAY_URL` | — | Optional override for the relay WebSocket URL |
+| `PINGIO_SELF_HOSTED_RELAY_URL` | `ws://localhost:5000/ws` | Relay URL in self-hosted mode |
+| `PINGIO_ENABLE_LOCAL_P2P` | `true` | Try LAN P2P before using the relay |
 | `LOCAL_ARTIFACT_DIR` | `~/.pingio/artifacts` | Build-group artifact storage path |
 | `MAX_ARTIFACT_MESSAGE_SIZE` | `1048576` | Max artifact payload size in bytes (1 MB) |
 | `ARTIFACT_CLEANUP_INTERVAL_HOURS` | `1` | How often to run artifact cleanup |

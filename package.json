@@ -14,7 +14,8 @@
     "test:integration": "vitest run --config tests/integration/vitest.config.ts",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean",
-    "setup:llms": "node scripts/setup-llms.mjs"
+    "setup:llms": "node scripts/setup-llms.mjs",
+    "test:plugin": "node scripts/validate-plugin.mjs"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^11.12.0",

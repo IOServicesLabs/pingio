@@ -14,6 +14,58 @@ interface WellKnownPingio {
   federation_enabled: boolean;
 }
 
+/**
+ * Environment overrides for the user config. These win over
+ * ~/.pingio/config.json and the built-in defaults, which makes them handy for
+ * containers and MCP-client configs (where editing the config file is awkward):
+ *
+ *   PINGIO_MODE                 cloud | self-hosted | auto
+ *   PINGIO_CLOUD_ENDPOINT       e.g. https://auth.example.com
+ *   PINGIO_CLOUD_RELAY_URL      e.g. wss://relay.example.com/ws
+ *   PINGIO_SELF_HOSTED_RELAY_URL  e.g. ws://localhost:5000/ws
+ *   PINGIO_SELF_HOSTED_AUTH_URL   e.g. https://relay.example.com
+ *   PINGIO_ENABLE_LOCAL_P2P     1/true/yes enable; 0/false/no disable
+ */
+function applyEnvOverrides(config: Record<string, unknown>): Record<string, unknown> {
+  const env = process.env;
+  const out: Record<string, unknown> = { ...config };
+
+  if (env.PINGIO_MODE) {
+    // Validated by UserConfigSchema ('cloud' | 'self-hosted' | 'auto').
+    out.mode = env.PINGIO_MODE;
+  }
+  if (env.PINGIO_CLOUD_ENDPOINT) {
+    out.cloudEndpoint = env.PINGIO_CLOUD_ENDPOINT;
+  }
+  if (env.PINGIO_CLOUD_RELAY_URL) {
+    out.cloudRelayUrl = env.PINGIO_CLOUD_RELAY_URL;
+  }
+
+  const selfHosted: Record<string, unknown> = {
+    ...(config.selfHosted as Record<string, unknown> | undefined),
+  };
+  let selfHostedTouched = false;
+  if (env.PINGIO_SELF_HOSTED_RELAY_URL) {
+    selfHosted.relayUrl = env.PINGIO_SELF_HOSTED_RELAY_URL;
+    selfHostedTouched = true;
+  }
+  if (env.PINGIO_SELF_HOSTED_AUTH_URL) {
+    selfHosted.authUrl = env.PINGIO_SELF_HOSTED_AUTH_URL;
+    selfHostedTouched = true;
+  }
+  if (env.PINGIO_ENABLE_LOCAL_P2P !== undefined) {
+    selfHosted.enableLocalP2P = !['0', 'false', 'no'].includes(
+      env.PINGIO_ENABLE_LOCAL_P2P.toLowerCase()
+    );
+    selfHostedTouched = true;
+  }
+  if (selfHostedTouched) {
+    out.selfHosted = selfHosted;
+  }
+
+  return out;
+}
+
 export class ConfigManager {
   private config: UserConfig;
 
@@ -22,17 +74,26 @@ export class ConfigManager {
   }
 
   private loadConfig(): UserConfig {
+    let fileConfig: Record<string, unknown> = {};
     try {
       if (existsSync(CONFIG_PATH)) {
         const data = readFileSync(CONFIG_PATH, 'utf-8');
-        const parsed = JSON.parse(data);
-        return UserConfigSchema.parse({ ...DEFAULT_CONFIG, ...parsed });
+        fileConfig = JSON.parse(data);
       }
     } catch (error) {
       console.error('Failed to load config:', error);
     }
 
-    return UserConfigSchema.parse(DEFAULT_CONFIG);
+    // Precedence: PINGIO_* env vars > config file > built-in defaults.
+    try {
+      return UserConfigSchema.parse(applyEnvOverrides({ ...DEFAULT_CONFIG, ...fileConfig }));
+    } catch (error) {
+      console.error(
+        'Invalid configuration (check ~/.pingio/config.json and PINGIO_* env vars):',
+        error
+      );
+      return UserConfigSchema.parse(DEFAULT_CONFIG);
+    }
   }
 
   saveConfig(): void {

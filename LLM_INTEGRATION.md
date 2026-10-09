@@ -2,18 +2,20 @@
 
 This guide explains how to integrate the Pingio Server with various LLMs and IDEs like Claude Desktop, Cursor, Windsurf, ChatGPT, and OpenWebUI.
 
+> **Using Claude Code or Codex?** Skip this guide and install the plugin instead — it bundles the MCP server plus a usage skill and setup commands. See the [plugin README](plugins/pingio/README.md).
+
 ## 1-Shot Automated Setup (Easiest)
 
 If you don't want to clone the repository or build the code yourself, simply run one of the commands below. It will automatically detect your OS and configure your installed LLM clients (Claude Desktop, Cursor, and Windsurf) to pull and run the `pingio` via `npx`.
 
 **Mac / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/user/pingio/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/IOServicesLabs/pingio/main/scripts/install.sh | bash
 ```
 
 **Windows (run in PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/user/pingio/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/IOServicesLabs/pingio/main/scripts/install.ps1 | iex
 ```
 
 Restart your LLM client (Claude Desktop / Cursor) after running the script!
