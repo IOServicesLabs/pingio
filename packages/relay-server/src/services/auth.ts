@@ -15,6 +15,13 @@ export const ACCESS_TOKEN_EXPIRES_IN = `${ACCESS_TOKEN_EXPIRY_MINUTES}m`;
 export const REFRESH_TOKEN_EXPIRES_IN_DAYS = REFRESH_TOKEN_EXPIRY_DAYS;
 export const SALT_ROUNDS = 10;
 export const DEFAULT_INSECURE_JWT_SECRET = 'your-secret-key-change-in-production';
+// Every placeholder string that has shipped in repo files — the production
+// guard below refuses all of them, not just the constant above.
+export const KNOWN_INSECURE_JWT_SECRETS: readonly string[] = [
+  DEFAULT_INSECURE_JWT_SECRET,
+  'change-this-secret-in-production',
+  'your-super-secret-jwt-key-change-this-in-production',
+];
 export const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_INSECURE_JWT_SECRET;
 
 export interface AuthConfig {
@@ -40,10 +47,10 @@ export class AuthService {
       this.strategy = new CentralAuthStrategy(issuer, audience, postgres);
     } else {
       const effectiveSecret = config?.mode ? JWT_SECRET : process.env.JWT_SECRET || JWT_SECRET;
-      // Fail fast in production rather than signing tokens with a public default secret.
-      if (process.env.NODE_ENV === 'production' && effectiveSecret === DEFAULT_INSECURE_JWT_SECRET) {
+      // Fail fast in production rather than signing tokens with a repo-public placeholder.
+      if (process.env.NODE_ENV === 'production' && KNOWN_INSECURE_JWT_SECRETS.includes(effectiveSecret)) {
         throw new Error(
-          'Refusing to start: JWT_SECRET is unset or still the known default. ' +
+          'Refusing to start: JWT_SECRET is unset or still a known placeholder. ' +
           'Set a strong JWT_SECRET (e.g. openssl rand -base64 32) when running AUTH_MODE=local in production.'
         );
       }
@@ -289,7 +296,7 @@ export class AuthService {
     return jwt.sign(
       { userId, username, type: 'access', jti: crypto.randomUUID() },
       JWT_SECRET,
-      { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+      { expiresIn: ACCESS_TOKEN_EXPIRY_MINUTES * 60 }
     );
   }
 

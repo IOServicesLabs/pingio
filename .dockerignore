@@ -19,5 +19,8 @@
 # Logs
 *.log
 
+# npm pack output
+*.tgz
+
 # Local Claude Code settings
 .claude

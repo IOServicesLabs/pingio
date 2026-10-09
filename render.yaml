@@ -57,12 +57,10 @@ services:
         value: 'true'
       - key: MAX_DEVICES_PER_USER
         value: '5'
-      - key: TOKEN_EXPIRY_MINUTES
+      - key: ACCESS_TOKEN_EXPIRY_MINUTES
         value: '60'
       - key: REFRESH_TOKEN_EXPIRY_DAYS
         value: '30'
-      - key: JWT_SECRET
-        generateValue: true
 
   - type: web
     name: pingio-relay
@@ -100,11 +98,5 @@ services:
         value: 'true'
       - key: CORS_ORIGIN
         value: 'false'
-      - key: DEVICE_VERIFICATION_REQUIRED
-        value: 'true'
-      - key: MAX_DEVICES_PER_USER
-        value: '5'
-      - key: TOKEN_EXPIRY_MINUTES
-        value: '60'
-      - key: REFRESH_TOKEN_EXPIRY_DAYS
-        value: '30'
+      # DEVICE_VERIFICATION_REQUIRED / MAX_DEVICES_PER_USER / token expiries
+      # are enforced by pingio-auth in central mode — not set here.

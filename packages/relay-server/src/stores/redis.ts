@@ -83,8 +83,9 @@ export class RedisStore {
 
     const presence: Record<string, Presence> = {};
     userIds.forEach((userId, index) => {
-      if (results[index]) {
-        presence[userId] = JSON.parse(results[index]);
+      const raw = results[index];
+      if (raw) {
+        presence[userId] = JSON.parse(raw);
       }
     });
 

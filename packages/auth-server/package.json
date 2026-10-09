@@ -2,6 +2,11 @@
   "name": "@pingio/auth-server",
   "version": "0.1.0",
   "description": "Central OAuth2/OIDC authentication server for Pingio",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +14,7 @@
     "auth-server": "dist/server.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').cpSync('src/migrations','dist/migrations',{recursive:true})\"",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
@@ -20,19 +25,17 @@
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",
-    "@pingio/shared": "*",
+    "@pingio/shared": "^0.1.0",
     "bcrypt": "^5.1.0",
     "dotenv": "^16.4.0",
     "fastify": "^4.26.0",
     "jose": "^5.2.0",
-    "jsonwebtoken": "^9.0.0",
     "pg": "^8.11.0",
     "uuid": "^9.0.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
-    "@types/jsonwebtoken": "^9.0.0",
     "@types/node": "^20.11.0",
     "@types/pg": "^8.11.0",
     "@types/uuid": "^9.0.0",

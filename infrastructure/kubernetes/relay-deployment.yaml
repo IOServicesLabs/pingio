@@ -1,18 +1,27 @@
+# Relay server deployment for Pingio (AUTH_MODE=local by default).
+#
+# NOTE: there is intentionally no auth-server manifest here yet — these
+# manifests only cover a self-contained relay. For a central-auth deployment
+# you'd also need a Deployment/Service/Ingress for `pingio/auth-server:latest`
+# on port 3001 plus AUTH_MODE=central + CENTRAL_AUTH_ISSUER on this relay.
+#
+# The image below is a placeholder — build and push your own, e.g.:
+#   docker build -f infrastructure/docker/Dockerfile.relay -t <registry>/pingio-relay:<tag> .
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mcp-relay
+  name: pingio-relay
   labels:
-    app: mcp-relay
+    app: pingio-relay
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: mcp-relay
+      app: pingio-relay
   template:
     metadata:
       labels:
-        app: mcp-relay
+        app: pingio-relay
     spec:
       containers:
       - name: relay
@@ -27,17 +36,17 @@ spec:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: mcp-secrets
+              name: pingio-secrets
               key: database-url
         - name: REDIS_URL
           valueFrom:
             secretKeyRef:
-              name: mcp-secrets
+              name: pingio-secrets
               key: redis-url
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:
-              name: mcp-secrets
+              name: pingio-secrets
               key: jwt-secret
         livenessProbe:
           httpGet:
@@ -62,12 +71,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mcp-relay
+  name: pingio-relay
   labels:
-    app: mcp-relay
+    app: pingio-relay
 spec:
   selector:
-    app: mcp-relay
+    app: pingio-relay
   ports:
   - port: 80
     targetPort: 3000
@@ -76,7 +85,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mcp-relay
+  name: pingio-relay
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
@@ -85,7 +94,7 @@ spec:
   tls:
   - hosts:
     - relay.example.com
-    secretName: mcp-relay-tls
+    secretName: pingio-relay-tls
   rules:
   - host: relay.example.com
     http:
@@ -94,19 +103,19 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: mcp-relay
+            name: pingio-relay
             port:
               number: 80
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: mcp-relay
+  name: pingio-relay
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: mcp-relay
+    name: pingio-relay
   minReplicas: 3
   maxReplicas: 10
   metrics:

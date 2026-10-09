@@ -37,15 +37,15 @@ services:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.relay
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3000
       DATABASE_URL: postgresql://pingio:${POSTGRES_PASSWORD:-changeme}@postgres:5432/pingio
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       # Security settings
       DEVICE_VERIFICATION_REQUIRED: ${DEVICE_VERIFICATION_REQUIRED:-true}
       MAX_DEVICES_PER_USER: ${MAX_DEVICES_PER_USER:-5}
-      TOKEN_EXPIRY_MINUTES: ${TOKEN_EXPIRY_MINUTES:-60}
+      ACCESS_TOKEN_EXPIRY_MINUTES: ${ACCESS_TOKEN_EXPIRY_MINUTES:-60}
       REFRESH_TOKEN_EXPIRY_DAYS: ${REFRESH_TOKEN_EXPIRY_DAYS:-30}
     ports:
       - "5000:3000"

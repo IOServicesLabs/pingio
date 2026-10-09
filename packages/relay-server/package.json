@@ -2,13 +2,18 @@
   "name": "@pingio/relay-server",
   "version": "0.1.0",
   "description": "Cloud relay server for Pingio",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "relay-server": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
@@ -20,7 +25,7 @@
   "dependencies": {
     "@fastify/cors": "^9.0.0",
     "@fastify/websocket": "^10.0.0",
-    "@pingio/shared": "*",
+    "@pingio/shared": "^0.1.0",
     "bcrypt": "^5.1.0",
     "dotenv": "^16.4.0",
     "fastify": "^4.26.0",

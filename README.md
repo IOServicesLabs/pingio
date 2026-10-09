@@ -57,7 +57,7 @@ This is the recommended path if you want a public, TLS-secured Pingio deployment
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-org/pingio.git
+git clone https://github.com/IOServicesLabs/pingio.git
 cd pingio
 ```
 
@@ -138,19 +138,12 @@ Use the MCP server from the published npm package or from the local build. Add i
 For hacking on the code or running a private LAN relay.
 
 ```bash
-git clone https://github.com/your-org/pingio.git
+git clone https://github.com/IOServicesLabs/pingio.git
 cd pingio
 npm install
 ```
 
-Because the pre-installed `turbo` binary is Linux-only and may be missing the Windows native binary, build/test per package:
-
-```bash
-npm run build --workspace=@pingio/shared
-npm run build --workspace=@pingio/auth-server
-npm run build --workspace=@pingio/relay-server
-npm run build --workspace=@pingio/mcp-server
-```
+Build all packages from the root (turbo resolves the dependency order):
 
 ### Run the local Docker stack (self-contained relay auth)
 
@@ -161,7 +154,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The relay listens on `http://localhost:5000` and the WebSocket path is `ws://localhost:5000/ws`. The relay runs in `local` auth mode, so no separate auth container is started.
+The relay listens on `http://localhost:3000` and the WebSocket path is `ws://localhost:3000/ws`. The relay runs in `local` auth mode, so no separate auth container is started.
 
 ### Run tests
 
@@ -212,7 +205,6 @@ fly postgres attach --app pingio-auth pingio-db
 fly postgres attach --app pingio-relay pingio-db
 fly redis create --name pingio-redis
 fly secrets set --app pingio-relay REDIS_URL=<redis-url>
-fly secrets set --app pingio-auth JWT_SECRET=$(openssl rand -base64 32)
 ```
 
 ## Option 4 — Cloudflare
@@ -297,7 +289,8 @@ The MCP server reads configuration from `~/.pingio/config.json`. You can also se
 | `PINGIO_MODE` | `cloud`, `self-hosted`, or `auto` |
 | `PINGIO_CLOUD_ENDPOINT` | Base URL of the auth service (e.g. `https://auth.yourdomain.com`) |
 | `PINGIO_CLOUD_RELAY_URL` | Optional override for the relay WebSocket URL |
-| `PINGIO_SELF_HOSTED_RELAY_URL` | Relay URL in self-hosted mode (e.g. `ws://localhost:5000/ws`) |
+| `PINGIO_SELF_HOSTED_RELAY_URL` | Relay URL in self-hosted mode (e.g. `http://localhost:3000`) |
+| `PINGIO_SELF_HOSTED_AUTH_URL` | Optional auth-server URL in self-hosted mode (when the relay doesn't serve auth) |
 | `PINGIO_ENABLE_LOCAL_P2P` | `true`/`false` — try LAN P2P before using the relay |
 
 Example Claude Desktop / Cursor / Windsurf config:
@@ -327,7 +320,7 @@ For self-hosted:
       "args": ["-y", "@pingio/mcp-server"],
       "env": {
         "PINGIO_MODE": "self-hosted",
-        "PINGIO_SELF_HOSTED_RELAY_URL": "ws://localhost:5000/ws"
+        "PINGIO_SELF_HOSTED_RELAY_URL": "http://localhost:3000"
       }
     }
   }
@@ -597,10 +590,9 @@ stop_sharing_context(channelId=... | recipient="bob")             → revoke ear
 | `AUDIENCE` | `pingio-relay` | OIDC audience / `aud` claim |
 | `RELAY_ID` | — | Optional relay UUID for federation hooks |
 | `RELAY_URL` | `ws://localhost:3000/ws` | Relay WebSocket URL returned by discovery |
-| `JWT_SECRET` | — | Used for refresh-token signing (generate a strong secret) |
 | `DEVICE_VERIFICATION_REQUIRED` | `false` | Require approval for new devices |
 | `MAX_DEVICES_PER_USER` | `5` | Per-user device cap |
-| `TOKEN_EXPIRY_MINUTES` | `60` | Access token lifetime |
+| `ACCESS_TOKEN_EXPIRY_MINUTES` | `60` | Access token lifetime |
 | `REFRESH_TOKEN_EXPIRY_DAYS` | `30` | Refresh token lifetime |
 | `TRUST_PROXY` | `false` | Trust `X-Forwarded-*` headers |
 | `CORS_ORIGIN` | `true` | CORS origin(s); set to `false` in production |
@@ -620,13 +612,13 @@ stop_sharing_context(channelId=... | recipient="bob")             → revoke ear
 | `CENTRAL_AUTH_AUDIENCE` | `pingio-relay` | Audience for RS256 tokens |
 | `RELAY_ID` | — | Optional relay UUID |
 | `RELAY_HOST` | `localhost` | Host used in `/.well-known/pingio` |
-| `DEVICE_VERIFICATION_REQUIRED` | `false` | In `local` mode, require device verification |
-| `MAX_DEVICES_PER_USER` | `5` | Device cap in `local` mode |
-| `TOKEN_EXPIRY_MINUTES` | `60` | Token lifetime in `local` mode |
+| `DEVICE_VERIFICATION_REQUIRED` | `false` | In `local` mode, require device verification (in `central` mode the auth server enforces this) |
+| `MAX_DEVICES_PER_USER` | `5` | Device cap in `local` mode (no-op in `central` mode) |
+| `ACCESS_TOKEN_EXPIRY_MINUTES` | `60` | Token lifetime in `local` mode |
 | `MESSAGE_RETENTION_MINUTES` | `0` | Server-wide message TTL (0 = keep forever); channels can override |
 | `REFRESH_TOKEN_EXPIRY_DAYS` | `30` | Refresh lifetime in `local` mode |
 | `TRUST_PROXY` | `false` | Trust proxy headers |
-| `CORS_ORIGIN` | `true` | CORS origin(s) |
+| `CORS_ORIGIN` | `true` in development, `false` when `NODE_ENV=production` | CORS origin(s) |
 
 ### MCP server (`packages/mcp-server`)
 
@@ -635,7 +627,7 @@ stop_sharing_context(channelId=... | recipient="bob")             → revoke ear
 | `PINGIO_MODE` | `auto` | `cloud`, `self-hosted`, or `auto` |
 | `PINGIO_CLOUD_ENDPOINT` | — | Base URL of the central auth service |
 | `PINGIO_CLOUD_RELAY_URL` | — | Optional override for the relay WebSocket URL |
-| `PINGIO_SELF_HOSTED_RELAY_URL` | `ws://localhost:5000/ws` | Relay URL in self-hosted mode |
+| `PINGIO_SELF_HOSTED_RELAY_URL` | `http://localhost:3000` | Relay URL in self-hosted mode |
 | `PINGIO_ENABLE_LOCAL_P2P` | `true` | Try LAN P2P before using the relay |
 | `LOCAL_ARTIFACT_DIR` | `~/.pingio/artifacts` | Build-group artifact storage path |
 | `MAX_ARTIFACT_MESSAGE_SIZE` | `1048576` | Max artifact payload size in bytes (1 MB) |
@@ -644,13 +636,12 @@ stop_sharing_context(channelId=... | recipient="bob")             → revoke ear
 
 ## Database Migrations
 
-Both the auth server and relay server run migrations automatically on startup via their `PostgresStore.init()` methods. For production, you may want to run them manually or pin schema versions.
+Both the auth server and relay server set up their schemas automatically on startup — the auth server runs the SQL files in its `migrations/` directory (in sorted order), and the relay applies its schema from inline DDL in `PostgresStore.init()`. For production, you may want to run them manually or pin schema versions.
 
-Migration SQL files (all `*.sql` files in a package's `migrations/` directory run in sorted order on startup):
+Migration SQL files (auth server):
 
 - `packages/auth-server/src/migrations/001_initial.sql`
 - `packages/auth-server/src/migrations/002_sso.sql` (enterprise SSO identities + login flow state)
-- `packages/relay-server/src/migrations/001_initial.sql`
 
 ## Building (Turbo)
 
@@ -679,11 +670,11 @@ npm run build --workspace=@pingio/mcp-server
 ```bash
 # Unit tests
 npm run test --workspace=@pingio/auth-server     # 68 tests
-npm run test --workspace=@pingio/relay-server    # 184 tests
-npm run test --workspace=@pingio/mcp-server          # 254 tests
+npm run test --workspace=@pingio/relay-server    # 187 tests
+npm run test --workspace=@pingio/mcp-server      # 261 tests
 
 # Integration tests (Docker required)
-npm run test:integration                                # 27 tests
+npm run test:integration                                # 29 tests
 ```
 
 Smoke-test a running relay end to end (registration → mutual contacts → DM over

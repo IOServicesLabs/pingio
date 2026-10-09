@@ -1,50 +1,64 @@
 # Testing Pingio with Claude Code
 
+> **Plugin shortcut:** the quickest way to try Pingio in Claude Code is the plugin —
+> `claude --plugin-dir ./plugins/pingio` from the repo root (dev mode), or
+> `/plugin marketplace add IOServicesLabs/pingio` once the repo is public. See
+> `plugins/pingio/README.md`. The manual setup below is for hacking on the MCP
+> server itself.
+
 ## Step 1: Start the Infrastructure
 
 ```bash
 cd infrastructure/docker
-docker-compose up -d
+docker compose up -d
 ```
 
 Verify services are running:
 ```bash
-docker-compose ps
-docker-compose logs -f relay
+docker compose ps
+docker compose logs -f relay
 ```
 
-## Step 2: Configure Claude Code MCP
+The relay listens on port **3000** (WebSocket endpoint: `ws://localhost:3000/ws`).
 
-Add to your Claude Code settings file (`~/.claude/settings.json`):
+## Step 2: Build the Packages
+
+```bash
+# From the repo root — builds shared, then all dependents, in order
+npm run build
+```
+
+## Step 3: Configure Claude Code MCP
+
+Register the MCP server with the Claude Code CLI (from the repo root):
+
+```bash
+claude mcp add pingio -- node "$PWD/packages/mcp-server/dist/server.js"
+```
+
+Or add it to a project-scoped `.mcp.json` file:
 
 ```json
 {
   "mcpServers": {
-    "messaging": {
+    "pingio": {
       "command": "node",
-      "args": ["C:/path/to/pingio/packages/mcp-server/dist/server.js"],
+      "args": ["C:/path/to/Lemmetalk/packages/mcp-server/dist/server.js"],
       "env": {
-        "MCP_RELAY_URL": "ws://localhost:5000/ws"
+        "PINGIO_MODE": "self-hosted",
+        "PINGIO_SELF_HOSTED_RELAY_URL": "http://localhost:3000"
       }
     }
   }
 }
 ```
 
-**Note:** Adjust the path to match your actual directory.
-
-## Step 3: Build the MCP Server
-
-```bash
-cd packages/shared
-npm run build
-
-cd packages/relay-server
-npm run build
-
-cd packages/mcp-server
-npm run build
-```
+**Notes:**
+- The server key is `pingio` — tools appear as `mcp__pingio__*`.
+- The env vars are real: `PINGIO_MODE` + `PINGIO_SELF_HOSTED_RELAY_URL` are read at
+  startup (see `packages/mcp-server/src/config.ts`). Without them, the MCP server
+  boots in cloud mode against the default hosted relay.
+- Adjust the path to match your actual directory.
 
 ## Step 4: Test in Claude Code
 
@@ -88,17 +102,17 @@ Test via curl from another terminal:
 
 ```bash
 # Register user B
-curl -X POST http://localhost:5000/api/auth/register \
+curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"bob","password":"SecurePass123!","deviceFingerprint":"test-device"}'
 
 # Login user B
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"bob","password":"SecurePass123!","deviceFingerprint":"test-device"}'
 
 # Add contact (using token from login)
-curl -X POST http://localhost:5000/api/contacts \
+curl -X POST http://localhost:3000/api/contacts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <USER_B_TOKEN>" \
   -d '{"username":"alice"}'
@@ -111,26 +125,15 @@ Then in Claude Code, User A can message User B.
 1. Stop and restart with device verification:
 ```bash
 cd infrastructure/docker
-DEVICE_VERIFICATION_REQUIRED=true docker-compose up -d
+DEVICE_VERIFICATION_REQUIRED=true docker compose up -d
 ```
 
 2. Register a user in Claude Code (first device - auto-verified)
 
-3. Simulate a new device by modifying the device fingerprint. Edit the MCP config temporarily:
-```json
-{
-  "mcpServers": {
-    "messaging": {
-      "command": "node",
-      "args": [".../server.js"],
-      "env": {
-        "MCP_RELAY_URL": "ws://localhost:5000/ws",
-        "FORCE_NEW_DEVICE": "true"
-      }
-    }
-  }
-}
-```
+3. Simulate a new device: the MCP server's device fingerprint is derived from its
+   local identity store (`~/.pingio/`). Move that directory aside (or point
+   `PINGIO_CONFIG_DIR` at a fresh path) so the server generates a new fingerprint,
+   then restart Claude Code.
 
 4. Try to login - should get device verification required error
 
@@ -175,16 +178,18 @@ send_channel_message(channelId="xxx", content="Hello everyone!")
 ## Troubleshooting
 
 **Issue: MCP server not connecting**
-- Check relay is running: `docker-compose ps`
-- Check logs: `docker-compose logs relay`
-- Verify port 5000 is accessible
+- Check relay is running: `docker compose ps`
+- Check logs: `docker compose logs relay`
+- Verify port 3000 is accessible
+- Verify `PINGIO_MODE=self-hosted` and `PINGIO_SELF_HOSTED_RELAY_URL=http://localhost:3000`
+  are set, or the MCP server will try the hosted cloud relay instead
 
 **Issue: Device verification loop**
 - Set `DEVICE_VERIFICATION_REQUIRED=false` in docker-compose.yml for testing
 
 **Issue: Cannot find module errors**
-- Make sure you built all packages: `npm run build` in shared, relay-server, and mcp-server
+- Make sure you built all packages: `npm run build` from the repo root
 
 **Issue: Database connection errors**
-- Check postgres is healthy: `docker-compose ps`
+- Check postgres is healthy: `docker compose ps`
 - May need to wait 10-20 seconds for postgres to initialize

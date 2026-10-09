@@ -42,6 +42,11 @@ services:
       RELAY_URL: ${RELAY_URL:-wss://relay.pingio.io/ws}
       TRUST_PROXY: 'true'
       CORS_ORIGIN: ${CORS_ORIGIN:-false}
+      # Enforced by the auth server (central mode) — not by the relay.
+      DEVICE_VERIFICATION_REQUIRED: ${DEVICE_VERIFICATION_REQUIRED:-true}
+      MAX_DEVICES_PER_USER: ${MAX_DEVICES_PER_USER:-5}
+      ACCESS_TOKEN_EXPIRY_MINUTES: ${ACCESS_TOKEN_EXPIRY_MINUTES:-60}
+      REFRESH_TOKEN_EXPIRY_DAYS: ${REFRESH_TOKEN_EXPIRY_DAYS:-30}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -68,7 +73,9 @@ services:
       RELAY_ID: ${RELAY_ID:-}
       TRUST_PROXY: 'true'
       CORS_ORIGIN: ${CORS_ORIGIN:-false}
-      DEVICE_VERIFICATION_REQUIRED: ${DEVICE_VERIFICATION_REQUIRED:-false}
+      # NOTE: DEVICE_VERIFICATION_REQUIRED / MAX_DEVICES_PER_USER / token
+      # expiries are enforced by the auth service in central mode — setting
+      # them on the relay is a no-op.
     restart: unless-stopped
     depends_on:
       postgres:

@@ -31,10 +31,8 @@ CENTRAL_AUTH_AUDIENCE = 'pingio-relay'
 RELAY_ID = ''
 TRUST_PROXY = 'true'
 CORS_ORIGIN = 'false'
-DEVICE_VERIFICATION_REQUIRED = 'true'
-MAX_DEVICES_PER_USER = '5'
-TOKEN_EXPIRY_MINUTES = '60'
-REFRESH_TOKEN_EXPIRY_DAYS = '30'
+# DEVICE_VERIFICATION_REQUIRED / MAX_DEVICES_PER_USER / token expiries are
+# enforced by pingio-auth (see fly.auth.toml) — setting them here is a no-op.
 
 # Provision Postgres and Redis separately, then attach:
 #   fly postgres create --name pingio-db

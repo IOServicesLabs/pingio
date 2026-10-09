@@ -10,10 +10,18 @@ export const PRESENCE_HEARTBEAT_INTERVAL = 30000;
 export const RECONNECT_INTERVAL = 5000;
 export const MAX_RECONNECT_ATTEMPTS = 10;
 
-// Token expiry
-export const ACCESS_TOKEN_EXPIRY_MINUTES = 60;
-export const REFRESH_TOKEN_EXPIRY_DAYS = 30;
-export const MAX_DEVICES_PER_USER = 5;
+// Token expiry — overridable via environment (must be set before module load,
+// e.g. real process env; values <= 0 or non-numeric fall back to defaults)
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export const ACCESS_TOKEN_EXPIRY_MINUTES = envInt('ACCESS_TOKEN_EXPIRY_MINUTES', 60);
+export const REFRESH_TOKEN_EXPIRY_DAYS = envInt('REFRESH_TOKEN_EXPIRY_DAYS', 30);
+export const MAX_DEVICES_PER_USER = envInt('MAX_DEVICES_PER_USER', 5);
 
 // Message limits
 export const MAX_MESSAGE_LENGTH = 4096;

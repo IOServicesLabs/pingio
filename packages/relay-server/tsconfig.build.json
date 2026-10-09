@@ -1,0 +1,7 @@
+{
+  // Build config: emits only what Docker images / deployment startCommands run.
+  // Tests are type-checked by `npm run typecheck` (base tsconfig) and run by
+  // vitest from src — they don't belong in dist.
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+}

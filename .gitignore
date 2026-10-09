@@ -31,3 +31,5 @@ Thumbs.db
 # Local scratch files
 chat-output.txt
 scrape_jobs.py
+jobs.csv
+*.tgz

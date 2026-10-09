@@ -49,9 +49,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, (async (request: any) => {
-  const { name: rawName, arguments: args = {} } = request.params;
-  // Strip mcp__messaging__ prefix if present
-  const name = rawName.replace(/^mcp__messaging__/, '');
+  const { name, arguments: args = {} } = request.params;
 
   try {
     return await dispatchTool(name, args);
