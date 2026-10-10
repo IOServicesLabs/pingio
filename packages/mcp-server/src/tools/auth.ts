@@ -43,7 +43,9 @@ export async function registerUser(
 
     configManager.setIdentity(username, token, userId, refreshToken, deviceId);
 
-    relayClient.connect(token);
+    // Pass the device fingerprint like login does — relays with
+    // DEVICE_VERIFICATION_REQUIRED=true reject fingerprint-less WS auth.
+    relayClient.connect(token, getDeviceFingerprint());
 
     await p2pService.initialize(userId, username);
 
