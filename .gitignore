@@ -33,3 +33,4 @@ chat-output.txt
 scrape_jobs.py
 jobs.csv
 *.tgz
+.ft-test/

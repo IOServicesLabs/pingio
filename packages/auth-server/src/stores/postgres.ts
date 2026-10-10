@@ -67,6 +67,33 @@ export interface SsoLoginState {
   expiresAt: Date;
 }
 
+export type RelayNodeStatus = 'active' | 'grace' | 'decommissioned';
+
+export interface RelayNode {
+  id: string;
+  name: string;
+  baseUrl: string;
+  wsUrl: string;
+  operator?: string;
+  credentialHash: string;
+  reportedVersion?: string;
+  status: RelayNodeStatus;
+  statusReason?: string;
+  registeredAt?: Date;
+  lastHeartbeatAt?: Date;
+}
+
+export interface NetworkVersionPolicy {
+  component: string;
+  currentVersion: string;
+  minSupportedVersion: string;
+  graceEndsAt?: Date;
+  artifactUrl?: string;
+  artifactSha256?: string;
+  manifest?: string;
+  updatedAt?: Date;
+}
+
 export class PostgresStore {
   private pool: Pool;
 
@@ -459,5 +486,148 @@ export class PostgresStore {
     await this.pool.query(
       'DELETE FROM sso_login_codes WHERE expires_at <= NOW() OR used_at IS NOT NULL'
     );
+  }
+
+  // ---- Federation: relay node registry ----
+
+  private mapRelayNode(row: Record<string, unknown>): RelayNode {
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      baseUrl: row.base_url as string,
+      wsUrl: row.ws_url as string,
+      operator: (row.operator as string) || undefined,
+      credentialHash: row.credential_hash as string,
+      reportedVersion: (row.reported_version as string) || undefined,
+      status: row.status as RelayNodeStatus,
+      statusReason: (row.status_reason as string) || undefined,
+      registeredAt: row.registered_at as Date | undefined,
+      lastHeartbeatAt: row.last_heartbeat_at as Date | undefined,
+    };
+  }
+
+  async createRelayNode(
+    name: string,
+    baseUrl: string,
+    wsUrl: string,
+    operator: string | undefined,
+    credentialHash: string,
+    version: string | undefined,
+    status: RelayNodeStatus
+  ): Promise<RelayNode | null> {
+    try {
+      const result = await this.pool.query(
+        `INSERT INTO relay_nodes (name, base_url, ws_url, operator, credential_hash, reported_version, status, registered_at, last_heartbeat_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+         RETURNING *`,
+        [name, baseUrl, wsUrl, operator || null, credentialHash, version || null, status]
+      );
+      return this.mapRelayNode(result.rows[0]);
+    } catch (error) {
+      const dbError = error as { code?: string };
+      if (dbError.code === '23505') {
+        return null; // base_url (or credential) already registered
+      }
+      throw error;
+    }
+  }
+
+  async getRelayNodeByCredentialHash(credentialHash: string): Promise<RelayNode | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM relay_nodes WHERE credential_hash = $1',
+      [credentialHash]
+    );
+    if (!result.rows[0]) return null;
+    return this.mapRelayNode(result.rows[0]);
+  }
+
+  async getRelayNodeById(id: string): Promise<RelayNode | null> {
+    const result = await this.pool.query('SELECT * FROM relay_nodes WHERE id = $1', [id]);
+    if (!result.rows[0]) return null;
+    return this.mapRelayNode(result.rows[0]);
+  }
+
+  async updateRelayNodeHeartbeat(id: string, version: string | undefined): Promise<void> {
+    await this.pool.query(
+      `UPDATE relay_nodes
+       SET last_heartbeat_at = NOW(), reported_version = COALESCE($2, reported_version)
+       WHERE id = $1`,
+      [id, version || null]
+    );
+  }
+
+  async setRelayNodeStatus(
+    id: string,
+    status: RelayNodeStatus,
+    reason?: string
+  ): Promise<boolean> {
+    const result = await this.pool.query(
+      'UPDATE relay_nodes SET status = $2, status_reason = $3 WHERE id = $1 RETURNING id',
+      [id, status, reason || null]
+    );
+    return result.rows.length > 0;
+  }
+
+  async listRelayNodes(statuses?: RelayNodeStatus[]): Promise<RelayNode[]> {
+    if (statuses && statuses.length > 0) {
+      const result = await this.pool.query(
+        'SELECT * FROM relay_nodes WHERE status = ANY($1) ORDER BY registered_at ASC',
+        [statuses]
+      );
+      return result.rows.map(row => this.mapRelayNode(row));
+    }
+    const result = await this.pool.query('SELECT * FROM relay_nodes ORDER BY registered_at ASC');
+    return result.rows.map(row => this.mapRelayNode(row));
+  }
+
+  // ---- Federation: network version policy ----
+
+  private mapPolicy(row: Record<string, unknown>): NetworkVersionPolicy {
+    return {
+      component: row.component as string,
+      currentVersion: row.current_version as string,
+      minSupportedVersion: row.min_supported_version as string,
+      graceEndsAt: (row.grace_ends_at as Date) || undefined,
+      artifactUrl: (row.artifact_url as string) || undefined,
+      artifactSha256: (row.artifact_sha256 as string) || undefined,
+      manifest: (row.manifest as string) || undefined,
+      updatedAt: row.updated_at as Date | undefined,
+    };
+  }
+
+  async upsertNetworkPolicy(policy: NetworkVersionPolicy): Promise<NetworkVersionPolicy> {
+    const result = await this.pool.query(
+      `INSERT INTO network_version_policy
+         (component, current_version, min_supported_version, grace_ends_at, artifact_url, artifact_sha256, manifest, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       ON CONFLICT (component)
+       DO UPDATE SET current_version = $2, min_supported_version = $3, grace_ends_at = $4,
+                     artifact_url = $5, artifact_sha256 = $6, manifest = $7, updated_at = NOW()
+       RETURNING *`,
+      [
+        policy.component,
+        policy.currentVersion,
+        policy.minSupportedVersion,
+        policy.graceEndsAt || null,
+        policy.artifactUrl || null,
+        policy.artifactSha256 || null,
+        policy.manifest || null,
+      ]
+    );
+    return this.mapPolicy(result.rows[0]);
+  }
+
+  async getNetworkPolicy(component: string): Promise<NetworkVersionPolicy | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM network_version_policy WHERE component = $1',
+      [component]
+    );
+    if (!result.rows[0]) return null;
+    return this.mapPolicy(result.rows[0]);
+  }
+
+  async listNetworkPolicies(): Promise<NetworkVersionPolicy[]> {
+    const result = await this.pool.query('SELECT * FROM network_version_policy ORDER BY component');
+    return result.rows.map(row => this.mapPolicy(row));
   }
 }

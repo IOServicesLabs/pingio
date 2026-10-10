@@ -19,6 +19,7 @@ vi.mock('ws', () => ({ default: MockWebSocket }));
 vi.mock('../config.js', () => ({
   configManager: {
     getEffectiveRelayUrl: vi.fn(() => 'ws://localhost:3000/ws'),
+    getRelayPool: vi.fn(() => ['ws://localhost:3000/ws', 'wss://relay-b.example.com/ws']),
     getConfig: vi.fn(() => ({ identity: { authToken: 'test-token', userId: 'u1', username: 'alice' } })),
   },
 }));
@@ -146,5 +147,55 @@ describe('RelayClient', () => {
     client.disconnect();
 
     expect(client.getStatus()).toBe('disconnected');
+  });
+
+  it('fails over to the next pool relay after a connection error', async () => {
+    vi.useFakeTimers();
+    try {
+      const { RelayClient } = await import('./relay.js');
+      const client = new RelayClient();
+
+      let errorHandler: Function | undefined;
+      mockWsOn.mockImplementation((event: string, cb: Function) => {
+        if (event === 'error') errorHandler = cb;
+      });
+
+      client.connect('test-token');
+      expect(MockWebSocket).toHaveBeenLastCalledWith('ws://localhost:3000/ws');
+
+      // First relay errors — reconnect should target the second pool member.
+      client.on('error', () => {}); // swallow emitted error
+      wsReadyState = 3; // errored socket is closed
+      errorHandler?.(new Error('connection refused'));
+      vi.advanceTimersByTime(5000); // RECONNECT_INTERVAL
+
+      expect(MockWebSocket).toHaveBeenLastCalledWith('wss://relay-b.example.com/ws');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails over immediately when a relay closes with 1013 (decommissioned)', async () => {
+    vi.useFakeTimers();
+    try {
+      const { RelayClient } = await import('./relay.js');
+      const client = new RelayClient();
+
+      let closeHandler: Function | undefined;
+      mockWsOn.mockImplementation((event: string, cb: Function) => {
+        if (event === 'close') closeHandler = cb;
+      });
+
+      client.connect('test-token');
+      expect(MockWebSocket).toHaveBeenLastCalledWith('ws://localhost:3000/ws');
+
+      wsReadyState = 3; // closed socket
+      closeHandler?.(1013, Buffer.from('relay node decommissioned'));
+      vi.advanceTimersByTime(5000); // RECONNECT_INTERVAL
+
+      expect(MockWebSocket).toHaveBeenLastCalledWith('wss://relay-b.example.com/ws');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

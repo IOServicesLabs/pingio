@@ -351,9 +351,43 @@ export class PostgresStore {
         CREATE INDEX IF NOT EXISTS idx_refresh_tokens_device ON refresh_tokens(device_id);
         CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
       `);
+
+      // Federation node identity: single-row state holding this relay's
+      // registered node id + credential for the central auth control plane.
+      // The credential is a bearer secret — DB access already implies full
+      // relay compromise, so it is stored as-is (like session secrets).
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS relay_node_state (
+          id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+          node_id UUID NOT NULL,
+          credential VARCHAR(128) NOT NULL,
+          registered_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
     } finally {
       client.release();
     }
+  }
+
+  // Federation node state (single row)
+  async getRelayNodeState(): Promise<{ nodeId: string; credential: string } | null> {
+    const result = await this.pool.query(
+      `SELECT node_id, credential FROM relay_node_state WHERE id = 1`
+    );
+    if (result.rows.length === 0) return null;
+    return { nodeId: result.rows[0].node_id, credential: result.rows[0].credential };
+  }
+
+  async saveRelayNodeState(nodeId: string, credential: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO relay_node_state (id, node_id, credential) VALUES (1, $1, $2)
+       ON CONFLICT (id) DO UPDATE SET node_id = $1, credential = $2`,
+      [nodeId, credential]
+    );
+  }
+
+  async clearRelayNodeState(): Promise<void> {
+    await this.pool.query(`DELETE FROM relay_node_state WHERE id = 1`);
   }
 
   // User operations

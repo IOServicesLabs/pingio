@@ -103,6 +103,34 @@ export class AuthService {
     return { keys: jwks };
   }
 
+  /**
+   * Mint a federation update manifest: an RS256 JWT whose claims pin a
+   * component's target version + artifact location + SHA-256. Relay nodes
+   * verify it against the JWKS endpoint (audience
+   * 'pingio-federation-manifest') before applying any auto update/downgrade.
+   * No expiry — the network_version_policy row is the source of truth and
+   * the manifest is re-minted on every policy change.
+   */
+  async signFederationManifest(claims: {
+    component: string;
+    version: string;
+    artifact_url: string;
+    artifact_sha256: string;
+  }): Promise<string> {
+    await this.ensureSigningKey();
+    if (!this.activeKey) {
+      throw new Error('No active signing key available');
+    }
+
+    const jwt = new SignJWT({ ...claims })
+      .setProtectedHeader({ alg: 'RS256', kid: this.activeKey.kid, typ: 'JWT' })
+      .setIssuer(this.issuer)
+      .setAudience('pingio-federation-manifest')
+      .setIssuedAt();
+
+    return await jwt.sign(this.activeKey.privateKey);
+  }
+
   async register(
     username: string,
     password: string,

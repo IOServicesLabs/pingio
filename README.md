@@ -154,7 +154,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The relay listens on `http://localhost:3000` and the WebSocket path is `ws://localhost:3000/ws`. The relay runs in `local` auth mode, so no separate auth container is started.
+The relay listens on `http://localhost:5000` (the compose file maps host 5000 → container 3000) and the WebSocket path is `ws://localhost:5000/ws`. The relay runs in `local` auth mode, so no separate auth container is started.
 
 ### Run tests
 
@@ -254,6 +254,25 @@ ingress:
 
 This keeps your origin machine private while still exposing auth + relay through Cloudflare.
 
+## Federation (multi-relay network)
+
+One auth server can anchor a whole pool of relays run by different operators: relays register with the auth server, heartbeat their running version, and clients discover the pool via `/.well-known/pingio` and fail over automatically. A network-wide version policy gives lagging nodes a grace period (default 72h) and then decommissions them, and nodes can opt into signed auto-updates (RS256 manifest + SHA-256-pinned artifact, applied via supervisor restart).
+
+```bash
+# On each relay node:
+AUTH_MODE=central
+CENTRAL_AUTH_ISSUER=https://auth.yourdomain.com
+FEDERATION_ENABLED=true
+FEDERATION_BOOTSTRAP_TOKEN=<network token>
+FEDERATION_AUTO_UPDATE=true   # opt-in
+
+# On the auth server:
+FEDERATION_BOOTSTRAP_TOKEN=<network token>   # unset = open registration
+FEDERATION_ADMIN_TOKEN=<admin token>         # enables the policy/fleet admin API
+```
+
+Full protocol, trust model, and operator runbook: [docs/FEDERATION.md](docs/FEDERATION.md).
+
 ## Claude Code / Codex Plugin
 
 The easiest way to use Pingio from Claude Code or Codex is the bundled plugin — it packages the MCP server, a usage skill for the agent, and `/pingio:setup` + `/pingio:status` slash commands (Claude Code).
@@ -289,7 +308,7 @@ The MCP server reads configuration from `~/.pingio/config.json`. You can also se
 | `PINGIO_MODE` | `cloud`, `self-hosted`, or `auto` |
 | `PINGIO_CLOUD_ENDPOINT` | Base URL of the auth service (e.g. `https://auth.yourdomain.com`) |
 | `PINGIO_CLOUD_RELAY_URL` | Optional override for the relay WebSocket URL |
-| `PINGIO_SELF_HOSTED_RELAY_URL` | Relay URL in self-hosted mode (e.g. `http://localhost:3000`) |
+| `PINGIO_SELF_HOSTED_RELAY_URL` | Relay URL in self-hosted mode (e.g. `ws://localhost:5000/ws`) |
 | `PINGIO_SELF_HOSTED_AUTH_URL` | Optional auth-server URL in self-hosted mode (when the relay doesn't serve auth) |
 | `PINGIO_ENABLE_LOCAL_P2P` | `true`/`false` — try LAN P2P before using the relay |
 
@@ -320,7 +339,7 @@ For self-hosted:
       "args": ["-y", "@pingio/mcp-server"],
       "env": {
         "PINGIO_MODE": "self-hosted",
-        "PINGIO_SELF_HOSTED_RELAY_URL": "http://localhost:3000"
+        "PINGIO_SELF_HOSTED_RELAY_URL": "ws://localhost:5000/ws"
       }
     }
   }
@@ -627,7 +646,7 @@ stop_sharing_context(channelId=... | recipient="bob")             → revoke ear
 | `PINGIO_MODE` | `auto` | `cloud`, `self-hosted`, or `auto` |
 | `PINGIO_CLOUD_ENDPOINT` | — | Base URL of the central auth service |
 | `PINGIO_CLOUD_RELAY_URL` | — | Optional override for the relay WebSocket URL |
-| `PINGIO_SELF_HOSTED_RELAY_URL` | `http://localhost:3000` | Relay URL in self-hosted mode |
+| `PINGIO_SELF_HOSTED_RELAY_URL` | `ws://localhost:5000/ws` | Relay URL in self-hosted mode |
 | `PINGIO_ENABLE_LOCAL_P2P` | `true` | Try LAN P2P before using the relay |
 | `LOCAL_ARTIFACT_DIR` | `~/.pingio/artifacts` | Build-group artifact storage path |
 | `MAX_ARTIFACT_MESSAGE_SIZE` | `1048576` | Max artifact payload size in bytes (1 MB) |

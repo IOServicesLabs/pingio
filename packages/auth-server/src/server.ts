@@ -9,6 +9,7 @@ import {
   renderLoginErrorPage,
 } from './services/sso.js';
 import { PostgresStore } from './stores/postgres.js';
+import { FederationService, FederationError } from './services/federation.js';
 import {
   UsernameSchema,
   PasswordSchema,
@@ -41,6 +42,17 @@ async function main() {
   if (ssoService.listProviders().length > 0) {
     console.log(
       `SSO providers: ${ssoService.listProviders().map(p => `${p.slug} (${p.name})`).join(', ')}`
+    );
+  }
+
+  // Federation control plane: relay node registry + network version policy.
+  const federationService = new FederationService(postgres, authService, {
+    bootstrapToken: process.env.FEDERATION_BOOTSTRAP_TOKEN,
+    adminToken: process.env.FEDERATION_ADMIN_TOKEN,
+  });
+  if (!process.env.FEDERATION_BOOTSTRAP_TOKEN) {
+    console.log(
+      'WARNING: FEDERATION_BOOTSTRAP_TOKEN unset — relay node registration is OPEN to anyone'
     );
   }
 
@@ -85,9 +97,172 @@ async function main() {
       relay_id: RELAY_ID || null,
       relay_url: RELAY_URL,
       auth_issuer: ISSUER,
-      federation_enabled: false,
+      federation_enabled: true,
+      // Pool of registered relays clients may use for failover / load spread.
+      // relay_url above remains the canonical primary.
+      relays: await federationService.listPublicNodes(),
     };
   });
+
+  // ---- Federation: node registry + version policy ----
+
+  fastify.post('/api/federation/register', async (request, reply) => {
+    const body = request.body as {
+      name?: string;
+      baseUrl?: string;
+      wsUrl?: string;
+      operator?: string;
+      version?: string;
+      bootstrapToken?: string;
+    };
+
+    try {
+      const result = await federationService.register({
+        name: body.name || '',
+        baseUrl: body.baseUrl || '',
+        wsUrl: body.wsUrl || '',
+        operator: body.operator,
+        version: body.version,
+        bootstrapToken: body.bootstrapToken,
+      });
+      return { success: true, ...result };
+    } catch (error) {
+      if (error instanceof FederationError) {
+        reply.status(
+          error.code === 'duplicate_base_url' ? 409
+          : error.code === 'invalid_bootstrap_token' ? 403
+          : error.code === 'bootstrap_required' ? 401
+          : 400
+        );
+        return { success: false, error: error.message, code: error.code };
+      }
+      throw error;
+    }
+  });
+
+  fastify.post('/api/federation/heartbeat', async (request, reply) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      reply.status(401);
+      return { success: false, error: 'Node credential required' };
+    }
+    const body = (request.body || {}) as { version?: string };
+
+    try {
+      const result = await federationService.heartbeat(authHeader.slice(7), body.version);
+      return { success: true, ...result };
+    } catch (error) {
+      if (error instanceof FederationError) {
+        reply.status(error.code === 'unknown_node' ? 403 : 400);
+        return { success: false, error: error.message, code: error.code };
+      }
+      throw error;
+    }
+  });
+
+  fastify.get('/api/federation/relays', async () => {
+    return { relays: await federationService.listPublicNodes() };
+  });
+
+  fastify.get('/api/federation/manifest/:component', async (request, reply) => {
+    const { component } = request.params as { component: string };
+    const policy = await federationService.getPolicy(component);
+    if (!policy || !policy.manifest) {
+      reply.status(404);
+      return { success: false, error: 'No manifest published for this component' };
+    }
+    return {
+      component: policy.component,
+      currentVersion: policy.currentVersion,
+      minSupportedVersion: policy.minSupportedVersion,
+      graceEndsAt: policy.graceEndsAt?.toISOString(),
+      manifest: policy.manifest,
+    };
+  });
+
+  // ---- Federation admin (FEDERATION_ADMIN_TOKEN bearer) ----
+
+  async function authenticateFederationAdmin(request: FastifyRequest, reply: import('fastify').FastifyReply): Promise<boolean> {
+    const authHeader = request.headers.authorization;
+    try {
+      federationService.assertAdmin(authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined);
+      return true;
+    } catch (error) {
+      if (error instanceof FederationError) {
+        reply.status(error.code === 'invalid_bootstrap_token' ? 403 : 503);
+        reply.send({ success: false, error: error.message });
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  fastify.put('/api/federation/policy/:component', async (request, reply) => {
+    if (!(await authenticateFederationAdmin(request, reply))) return;
+    const { component } = request.params as { component: string };
+    const body = request.body as {
+      currentVersion?: string;
+      minSupportedVersion?: string;
+      graceHours?: number;
+      artifactUrl?: string;
+      artifactSha256?: string;
+    };
+
+    try {
+      const policy = await federationService.setPolicy({
+        component,
+        currentVersion: body.currentVersion || '',
+        minSupportedVersion: body.minSupportedVersion || '',
+        graceHours: body.graceHours,
+        artifactUrl: body.artifactUrl || '',
+        artifactSha256: body.artifactSha256 || '',
+      });
+      return { success: true, policy };
+    } catch (error) {
+      if (error instanceof FederationError) {
+        reply.status(400);
+        return { success: false, error: error.message, code: error.code };
+      }
+      throw error;
+    }
+  });
+
+  fastify.get('/api/federation/nodes', async (request, reply) => {
+    if (!(await authenticateFederationAdmin(request, reply))) return;
+    return { nodes: await federationService.listAllNodes() };
+  });
+
+  fastify.post('/api/federation/nodes/:id/decommission', async (request, reply) => {
+    if (!(await authenticateFederationAdmin(request, reply))) return;
+    const { id } = request.params as { id: string };
+    const body = (request.body || {}) as { reason?: string };
+    try {
+      await federationService.decommissionNode(id, body.reason);
+      return { success: true };
+    } catch (error) {
+      if (error instanceof FederationError) {
+        reply.status(404);
+        return { success: false, error: error.message, code: error.code };
+      }
+      throw error;
+    }
+  });
+
+  fastify.post('/api/federation/nodes/:id/reactivate', async (request, reply) => {
+    if (!(await authenticateFederationAdmin(request, reply))) return;
+    const { id } = request.params as { id: string };
+    try {
+      await federationService.reactivateNode(id);
+      return { success: true };
+    } catch (error) {
+      if (error instanceof FederationError) {
+        reply.status(404);
+        return { success: false, error: error.message, code: error.code };
+      }
+      throw error;
+    }
+  });
+
 
   fastify.post('/oauth/register', async (request, reply) => {
     const body = request.body as {

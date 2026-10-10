@@ -19,7 +19,7 @@ docker compose ps
 docker compose logs -f relay
 ```
 
-The relay listens on port **3000** (WebSocket endpoint: `ws://localhost:3000/ws`).
+The relay listens on host port **5000** (compose maps 5000 → container 3000; WebSocket endpoint: `ws://localhost:5000/ws`).
 
 ## Step 2: Build the Packages
 
@@ -46,7 +46,7 @@ Or add it to a project-scoped `.mcp.json` file:
       "args": ["C:/path/to/Lemmetalk/packages/mcp-server/dist/server.js"],
       "env": {
         "PINGIO_MODE": "self-hosted",
-        "PINGIO_SELF_HOSTED_RELAY_URL": "http://localhost:3000"
+        "PINGIO_SELF_HOSTED_RELAY_URL": "ws://localhost:5000/ws"
       }
     }
   }
@@ -102,17 +102,17 @@ Test via curl from another terminal:
 
 ```bash
 # Register user B
-curl -X POST http://localhost:3000/api/auth/register \
+curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"bob","password":"SecurePass123!","deviceFingerprint":"test-device"}'
 
 # Login user B
-curl -X POST http://localhost:3000/api/auth/login \
+curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"bob","password":"SecurePass123!","deviceFingerprint":"test-device"}'
 
 # Add contact (using token from login)
-curl -X POST http://localhost:3000/api/contacts \
+curl -X POST http://localhost:5000/api/contacts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <USER_B_TOKEN>" \
   -d '{"username":"alice"}'
@@ -180,8 +180,8 @@ send_channel_message(channelId="xxx", content="Hello everyone!")
 **Issue: MCP server not connecting**
 - Check relay is running: `docker compose ps`
 - Check logs: `docker compose logs relay`
-- Verify port 3000 is accessible
-- Verify `PINGIO_MODE=self-hosted` and `PINGIO_SELF_HOSTED_RELAY_URL=http://localhost:3000`
+- Verify port 5000 is accessible
+- Verify `PINGIO_MODE=self-hosted` and `PINGIO_SELF_HOSTED_RELAY_URL=ws://localhost:5000/ws`
   are set, or the MCP server will try the hosted cloud relay instead
 
 **Issue: Device verification loop**

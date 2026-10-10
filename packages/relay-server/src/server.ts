@@ -2,6 +2,8 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import dotenv from 'dotenv';
+import fs from 'fs/promises';
+import path from 'path';
 import { z } from 'zod';
 import { PostgresStore } from './stores/postgres.js';
 import { RedisStore } from './stores/redis.js';
@@ -10,6 +12,7 @@ import { SessionService } from './services/session.js';
 import { PresenceService } from './services/presence.js';
 import { RateLimitService } from './services/rate-limit.js';
 import { WebSocketHandler } from './websocket/handler.js';
+import { RelayFederationClient } from './federation/client.js';
 import { WS_MAX_PAYLOAD_BYTES, ChannelKeyShareSchema, ChannelRoleSchema, MIN_CHANNEL_RETENTION_MINUTES, MAX_CHANNEL_RETENTION_MINUTES } from '@pingio/shared';
 import type { ChannelAuditAction } from '@pingio/shared';
 
@@ -42,6 +45,33 @@ async function main() {
 
   const redis = new RedisStore(process.env.REDIS_URL);
   console.log('Redis connected');
+
+  // Federation control-plane client (no-op unless FEDERATION_ENABLED=true).
+  // Registers this relay with the central auth server and heartbeats its
+  // version; drives grace warnings, decommission gating and auto-updates.
+  let relayVersion = '0.1.0';
+  try {
+    const pkgPath = path.join(__dirname, '..', 'package.json');
+    relayVersion = (JSON.parse(await fs.readFile(pkgPath, 'utf8')) as { version?: string }).version || relayVersion;
+  } catch {
+    // keep default — version reporting should never block boot
+  }
+  const federationClient = RelayFederationClient.fromEnv(postgres, relayVersion);
+  if (federationClient) {
+    // Boot must not depend on the control plane being reachable: retry in the
+    // background until registration + first heartbeat succeed.
+    void (async () => {
+      for (;;) {
+        try {
+          await federationClient.start();
+          return;
+        } catch (err) {
+          console.error(`[federation] startup failed: ${(err as Error).message} — retrying in 60s`);
+          await new Promise(resolve => setTimeout(resolve, 60_000));
+        }
+      }
+    })();
+  }
 
   // Initialize services
   const authService = new AuthService(postgres);
@@ -105,6 +135,8 @@ async function main() {
       timestamp: new Date().toISOString(),
       connections: sessionService.getOnlineUserCount(),
       authMode: authService.getMode(),
+      version: relayVersion,
+      federation: federationClient ? federationClient.getStatus() : { enabled: false },
     };
   });
 
@@ -1581,6 +1613,13 @@ async function main() {
   // WebSocket route
   fastify.register(async function (fastify) {
     fastify.get('/ws', { websocket: true }, (socket, req) => {
+      // A decommissioned federation node refuses NEW connections (1013 = try
+      // again later, so clients fail over to another pool relay); existing
+      // sessions are left to drain naturally.
+      if (federationClient?.isDecommissioned()) {
+        socket.close(1013, 'relay node decommissioned — reconnect to another pool relay');
+        return;
+      }
       const socketId = req.id;
       wsHandler.handleConnection(socket, socketId);
     });

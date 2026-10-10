@@ -101,3 +101,83 @@ describe('ConfigManager env overrides', () => {
     errorSpy.mockRestore();
   });
 });
+
+describe('ConfigManager federation relay pool', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockedExistsSync.mockReturnValue(false);
+    vi.stubEnv('PINGIO_MODE', 'cloud');
+    vi.stubEnv('PINGIO_CLOUD_ENDPOINT', 'https://auth.example.com');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  function stubDiscovery(doc: object) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(doc), { status: 200 }))
+    );
+  }
+
+  it('caches the relay pool from discovery, primary first', async () => {
+    stubDiscovery({
+      relay_url: 'wss://relay-a.example.com/ws',
+      auth_issuer: 'https://auth.example.com',
+      federation_enabled: true,
+      relays: [
+        { name: 'a', baseUrl: 'https://relay-a.example.com', wsUrl: 'wss://relay-a.example.com/ws', status: 'active' },
+        { name: 'b', baseUrl: 'https://relay-b.example.com', wsUrl: 'wss://relay-b.example.com/ws', status: 'active' },
+      ],
+    });
+
+    const manager = new ConfigManager();
+    await manager.discoverRelayUrl();
+
+    expect(manager.getRelayPool()).toEqual([
+      'wss://relay-a.example.com/ws',
+      'wss://relay-b.example.com/ws',
+    ]);
+  });
+
+  it('normalizes pool entries (https→wss, /ws path) and dedupes', async () => {
+    stubDiscovery({
+      relay_url: 'https://relay-a.example.com', // non-ws primary gets coerced
+      auth_issuer: 'https://auth.example.com',
+      federation_enabled: true,
+      relays: [
+        { name: 'a', baseUrl: 'https://relay-a.example.com', wsUrl: 'https://relay-a.example.com', status: 'active' },
+        { name: 'b', baseUrl: 'https://relay-b.example.com', wsUrl: 'wss://relay-b.example.com', status: 'grace' },
+      ],
+    });
+
+    const manager = new ConfigManager();
+    await manager.discoverRelayUrl();
+
+    expect(manager.getRelayPool()).toEqual([
+      'wss://relay-a.example.com/ws',
+      'wss://relay-b.example.com/ws',
+    ]);
+  });
+
+  it('pool falls back to just the effective relay before discovery runs', () => {
+    vi.stubEnv('PINGIO_CLOUD_RELAY_URL', 'wss://relay-static.example.com/ws');
+    const manager = new ConfigManager();
+    expect(manager.getRelayPool()).toEqual(['wss://relay-static.example.com/ws']);
+  });
+
+  it('keeps working with no relays array (single-relay auth server)', async () => {
+    stubDiscovery({
+      relay_url: 'wss://relay-a.example.com/ws',
+      auth_issuer: 'https://auth.example.com',
+      federation_enabled: false,
+    });
+
+    const manager = new ConfigManager();
+    await manager.discoverRelayUrl();
+
+    expect(manager.getRelayPool()).toEqual(['wss://relay-a.example.com/ws']);
+  });
+});

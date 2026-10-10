@@ -12,6 +12,13 @@ interface WellKnownPingio {
   relay_url: string;
   auth_issuer: string;
   federation_enabled: boolean;
+  relays?: Array<{
+    name: string;
+    baseUrl: string;
+    wsUrl: string;
+    version?: string;
+    status: string;
+  }>;
 }
 
 /**
@@ -68,6 +75,9 @@ function applyEnvOverrides(config: Record<string, unknown>): Record<string, unkn
 
 export class ConfigManager {
   private config: UserConfig;
+  // In-memory pool of federation relay WS URLs, learned from the auth
+  // server's /.well-known/pingio discovery document. Primary first.
+  private relayPool: string[] = [];
 
   constructor() {
     this.config = this.loadConfig();
@@ -143,10 +153,9 @@ export class ConfigManager {
 
   getAuthBaseUrl(): string {
     if (this.config.mode === 'self-hosted') {
-      return (
-        this.config.selfHosted.authUrl ||
-        this.getEffectiveRelayUrl().replace(/\/ws$/, '')
-      );
+      // authUrl wins; otherwise derive the HTTP base from the relay WS URL
+      // (getRestBaseUrl converts ws→http/wss→https and strips /ws).
+      return this.config.selfHosted.authUrl || this.getRestBaseUrl();
     }
     return this.config.cloudEndpoint;
   }
@@ -193,11 +202,42 @@ export class ConfigManager {
       }
       const data = (await response.json()) as WellKnownPingio;
       this.setCloudRelayUrl(data.relay_url);
+      // Cache the federation pool for failover: canonical primary first, then
+      // every registered node the auth server currently allows to serve
+      // traffic (it never lists decommissioned nodes).
+      const pool = [data.relay_url, ...(data.relays || []).map(r => r.wsUrl)]
+        .filter(Boolean)
+        .map(u => this.normalizeWsUrl(u));
+      this.relayPool = [...new Set(pool)];
       return data.relay_url;
     } catch (error) {
       console.error('Failed to discover relay URL:', error);
       return undefined;
     }
+  }
+
+  private normalizeWsUrl(raw: string): string {
+    try {
+      const url = new URL(raw);
+      if (url.protocol === 'http:') url.protocol = 'ws:';
+      else if (url.protocol === 'https:') url.protocol = 'wss:';
+      if (!url.pathname.endsWith('/ws')) {
+        url.pathname = url.pathname.replace(/\/$/, '') + '/ws';
+      }
+      return url.toString();
+    } catch {
+      return raw;
+    }
+  }
+
+  /**
+   * Ordered relay candidates for connection failover: the configured/effective
+   * relay first, then the federation pool learned from discovery. Always at
+   * least one entry.
+   */
+  getRelayPool(): string[] {
+    const primary = this.normalizeWsUrl(this.getEffectiveRelayUrl());
+    return [...new Set([primary, ...this.relayPool])];
   }
 
   getRestBaseUrl(): string {
@@ -210,7 +250,9 @@ export class ConfigManager {
         url.protocol = 'https:';
       }
       url.pathname = url.pathname.replace(/\/ws$/, '');
-      return url.toString();
+      // Strip the trailing slash URL serialization adds for an empty path,
+      // otherwise callers building `${base}/api/...` get a double slash.
+      return url.toString().replace(/\/$/, '');
     } catch {
       return relayUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
     }

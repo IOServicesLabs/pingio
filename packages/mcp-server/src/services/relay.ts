@@ -105,6 +105,9 @@ export class RelayClient extends EventEmitter {
   private messageQueue: ProtocolMessage[] = [];
   private authToken: string | null = null;
   private deviceFingerprint: string | null = null;
+  // Index into configManager.getRelayPool(); advances when the current relay
+  // fails so reconnects land on the next pool member (federation failover).
+  private poolIndex = 0;
 
   constructor() {
     super();
@@ -113,6 +116,7 @@ export class RelayClient extends EventEmitter {
   connect(token: string, deviceFingerprint?: string): void {
     this.authToken = token;
     this.deviceFingerprint = deviceFingerprint || null;
+    this.poolIndex = 0;
     this.doConnect();
   }
 
@@ -121,7 +125,8 @@ export class RelayClient extends EventEmitter {
 
     this.setStatus('connecting');
 
-    const relayUrl = configManager.getEffectiveRelayUrl();
+    const pool = configManager.getRelayPool();
+    const relayUrl = pool[this.poolIndex % pool.length];
 
     try {
       this.ws = new WebSocket(relayUrl);
@@ -164,14 +169,21 @@ export class RelayClient extends EventEmitter {
         }
       });
 
-      this.ws.on('close', () => {
+      this.ws.on('close', (code) => {
         clearTimeout(connectionTimeout);
         this.stopPing();
+        // 1013 = try again later: a decommissioned federation node telling us
+        // to fail over to another pool relay immediately.
+        if (code === 1013) {
+          this.poolIndex++;
+        }
         this.handleDisconnect();
       });
 
       this.ws.on('error', (error) => {
         clearTimeout(connectionTimeout);
+        // Connection-level failure: try the next pool member on reconnect.
+        this.poolIndex++;
         this.handleError(error);
       });
     } catch (error) {
