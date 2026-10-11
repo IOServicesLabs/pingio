@@ -145,6 +145,10 @@ npm install
 
 Build all packages from the root (turbo resolves the dependency order):
 
+```bash
+npm run build
+```
+
 ### Run the local Docker stack (self-contained relay auth)
 
 ```bash
@@ -688,9 +692,9 @@ npm run build --workspace=@pingio/mcp-server
 
 ```bash
 # Unit tests
-npm run test --workspace=@pingio/auth-server     # 68 tests
-npm run test --workspace=@pingio/relay-server    # 187 tests
-npm run test --workspace=@pingio/mcp-server      # 261 tests
+npm run test --workspace=@pingio/auth-server     # 98 tests
+npm run test --workspace=@pingio/relay-server    # 206 tests
+npm run test --workspace=@pingio/mcp-server      # 267 tests
 
 # Integration tests (Docker required)
 npm run test:integration                                # 29 tests
