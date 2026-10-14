@@ -1,0 +1,39 @@
+# Host-proxy override — run the stack behind an EXISTING nginx/apache on the
+# host that already owns ports 80/443 (shared box).
+#
+# What changes:
+#   - The bundled Caddy never starts (profile-gated); the host reverse proxy
+#     terminates TLS and must implement the single-domain path map:
+#       /ws*              -> relay:3000   (WebSocket Upgrade headers required)
+#       /api/federation/* -> auth:3001
+#       /api/*            -> relay:3000
+#       /oauth/*         -> auth:3001
+#       /.well-known/*   -> auth:3001
+#       /*               -> auth:3001
+#   - auth + relay publish on LOOPBACK-ONLY host ports (127.0.0.1:13001 /
+#     127.0.0.1:13000) so the host proxy can reach them without exposing them
+#     publicly. Override the port numbers here if they collide.
+#   - Project name is pinned to "pingio" (compose would otherwise derive it
+#     from the directory name, which may collide with other projects).
+#
+# .env: point AUTH_ISSUER (https://…) and RELAY_URL (wss://…/ws) at the PUBLIC
+# name the host proxy serves.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.host-proxy.yml up -d --build
+
+name: pingio
+
+services:
+  caddy:
+    # Host proxy owns 80/443 — the bundled Caddy only starts if explicitly
+    # requested with --profile bundled-caddy (e.g. for local debugging).
+    profiles: ["bundled-caddy"]
+
+  auth:
+    ports:
+      - "127.0.0.1:13001:3001"
+
+  relay:
+    ports:
+      - "127.0.0.1:13000:3000"
