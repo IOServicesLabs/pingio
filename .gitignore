@@ -34,3 +34,10 @@ scrape_jobs.py
 jobs.csv
 *.tgz
 .ft-test/
+
+# Python SDK
+__pycache__/
+*.py[cod]
+*.egg-info/
+python/build/
+python/dist/

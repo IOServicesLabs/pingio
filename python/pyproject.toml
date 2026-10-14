@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pingio"
+version = "0.1.0"
+description = "Python client SDK for the Pingio secure messaging relay (register/login, WebSocket DMs, presence)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "IOServicesLabs" }]
+keywords = ["messaging", "websocket", "relay", "pingio", "mcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Communications :: Chat",
+]
+dependencies = ["websocket-client>=1.6"]
+
+[project.urls]
+Homepage = "https://github.com/IOServicesLabs/pingio"
+Repository = "https://github.com/IOServicesLabs/pingio"
+Issues = "https://github.com/IOServicesLabs/pingio/issues"
+
+[project.scripts]
+pingio = "pingio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
