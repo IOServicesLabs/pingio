@@ -1,0 +1,32 @@
+# Single-domain deployment — one hostname serves BOTH auth and relay, split by path.
+# Use this instead of the two-domain Caddyfile when you only have/want one name
+# (e.g. pingio.ioservices.io instead of auth.example.com + relay.example.com).
+#
+# In .env set:
+#   SINGLE_DOMAIN=pingio.ioservices.io
+#   AUTH_ISSUER=https://pingio.ioservices.io
+#   RELAY_URL=wss://pingio.ioservices.io/ws
+# (AUTH_DOMAIN / RELAY_DOMAIN are unused in this mode.)
+#
+# Start with:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.single.yml up -d --build
+#
+# Path map:
+#   /ws, /api/*              -> relay (messaging REST + WebSocket)
+#   /api/federation/*        -> auth (federation node API; longest match wins)
+#   /oauth/*, /.well-known/* -> auth (OAuth2/OIDC + discovery documents)
+#   everything else          -> auth (health, SSO pages)
+#
+# Caveat: the relay's own /.well-known/pingio self-description is not publicly
+# reachable in this mode (all /.well-known goes to the auth server, whose
+# document is the one clients fetch). Only matters if you later join a
+# multi-relay federation as an external node — pool nodes need their own name.
+
+{$SINGLE_DOMAIN} {
+	reverse_proxy /ws* relay:3000
+	reverse_proxy /api/federation/* auth:3001
+	reverse_proxy /api/* relay:3000
+	reverse_proxy /oauth/* auth:3001
+	reverse_proxy /.well-known/* auth:3001
+	reverse_proxy auth:3001
+}

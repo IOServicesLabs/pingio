@@ -1,0 +1,14 @@
+# Single-domain override — serve auth + relay on ONE hostname via path routing
+# (see Caddyfile.single for the full path map and caveats).
+#
+# Usage:
+#   1. In .env set SINGLE_DOMAIN=pingio.example.com and point both
+#      AUTH_ISSUER (https://…) and RELAY_URL (wss://…/ws) at the same name.
+#   2. docker compose -f docker-compose.prod.yml -f docker-compose.single.yml up -d --build
+
+services:
+  caddy:
+    volumes:
+      - ./Caddyfile.single:/etc/caddy/Caddyfile
+    environment:
+      SINGLE_DOMAIN: ${SINGLE_DOMAIN:?SINGLE_DOMAIN must be set in .env for single-domain mode}

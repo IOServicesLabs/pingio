@@ -133,6 +133,29 @@ Use the MCP server from the published npm package or from the local build. Add i
 
 > The MCP server stores its persistent config in `~/.pingio/config.json` and will discover the relay URL automatically from `/.well-known/pingio`.
 
+### Single-domain variant
+
+If you'd rather run everything under one hostname (e.g. `pingio.ioservices.io` instead of `auth.` + `relay.` subdomains), a path-based Caddyfile and a compose override are included. Routing: `/ws` + `/api/*` → relay, `/oauth/*` + `/.well-known/*` + `/api/federation/*` → auth.
+
+In `.env`, set one name for **all three** variables:
+
+```ini
+SINGLE_DOMAIN=pingio.ioservices.io
+AUTH_ISSUER=https://pingio.ioservices.io
+RELAY_URL=wss://pingio.ioservices.io/ws
+```
+
+Then start with the override file:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.single.yml up -d --build
+```
+
+Users point their MCP client at the same name (`PINGIO_CLOUD_ENDPOINT=https://pingio.ioservices.io`) — discovery works exactly as before. Notes for this mode:
+
+- External `GET /health` answers from the **auth** server (the relay's health stays available inside the compose network and via `docker inspect` health status).
+- The relay's own `/.well-known/pingio` self-description is not publicly reachable (all `/.well-known` goes to the auth server, whose document is the one clients actually fetch). Only relevant if you later join a multi-relay federation as an external node — pool nodes need their own hostname.
+
 ## Option 2 — Local Development Install
 
 For hacking on the code or running a private LAN relay.
