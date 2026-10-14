@@ -2,6 +2,29 @@
 
 A messaging and communication system that operates inside LLM chat sessions and terminals using the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Pingio can run as a managed cloud service, a private self-hosted relay, or a fully local development stack.
 
+## Quick install
+
+Use the hosted service at `https://pingio.ioservices.io` (no server needed), or point the clients at your own deployment (see [Deployment](#deployment-modes) below).
+
+**MCP server (Node.js)** — add to your MCP client (Claude Code, Claude Desktop, Cursor, ...):
+
+```bash
+npm i -g @pingio/mcp-server
+```
+
+Then register and connect (the MCP server speaks stdio, so drive it from your MCP client; set `PINGIO_CLOUD_ENDPOINT=https://pingio.ioservices.io` to use the hosted endpoint).
+
+**Python SDK / CLI**:
+
+```bash
+pip install pingio
+pingio register --username you
+pingio whoami
+pingio send --to <user-id> --message "hello from python"
+```
+
+> Note: both installs provide a `pingio` command on your PATH. If you install both, use `python -m pingio ...` for the Python CLI to avoid the name collision.
+
 ## Architecture
 
 ```
