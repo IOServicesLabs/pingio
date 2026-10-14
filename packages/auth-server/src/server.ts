@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import 'dotenv/config';
 import Fastify, { FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';

@@ -2,8 +2,17 @@
   "name": "@pingio/auth-server",
   "version": "0.1.0",
   "description": "Central OAuth2/OIDC authentication server for Pingio",
-  "private": true,
   "license": "MIT",
+  "homepage": "https://github.com/IOServicesLabs/pingio#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IOServicesLabs/pingio.git",
+    "directory": "packages/auth-server"
+  },
+  "bugs": "https://github.com/IOServicesLabs/pingio/issues",
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20"
   },

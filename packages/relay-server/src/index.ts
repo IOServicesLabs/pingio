@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 export { WebSocketHandler } from './websocket/handler.js';
 export { PostgresStore } from './stores/postgres.js';
 export { RedisStore } from './stores/redis.js';

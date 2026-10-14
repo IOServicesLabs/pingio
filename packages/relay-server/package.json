@@ -1,9 +1,18 @@
 {
   "name": "@pingio/relay-server",
   "version": "0.1.0",
-  "description": "Cloud relay server for Pingio",
-  "private": true,
+  "description": "Cloud relay server for Pingio — REST + WebSocket messaging with E2E encryption",
   "license": "MIT",
+  "homepage": "https://github.com/IOServicesLabs/pingio#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IOServicesLabs/pingio.git",
+    "directory": "packages/relay-server"
+  },
+  "bugs": "https://github.com/IOServicesLabs/pingio/issues",
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20"
   },
