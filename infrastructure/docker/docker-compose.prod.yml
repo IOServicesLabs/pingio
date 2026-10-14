@@ -41,6 +41,10 @@ services:
       RELAY_ID: ${RELAY_ID:-}
       RELAY_URL: ${RELAY_URL:-wss://relay.pingio.io/ws}
       TRUST_PROXY: 'true'
+      # Federation control plane (relay node registry). Unset bootstrap token =
+      # open registration to anyone (auth server warns at boot).
+      FEDERATION_BOOTSTRAP_TOKEN: ${FEDERATION_BOOTSTRAP_TOKEN:-}
+      FEDERATION_ADMIN_TOKEN: ${FEDERATION_ADMIN_TOKEN:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-false}
       # Enforced by the auth server (central mode) — not by the relay.
       DEVICE_VERIFICATION_REQUIRED: ${DEVICE_VERIFICATION_REQUIRED:-true}
