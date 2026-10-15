@@ -9,7 +9,7 @@ Use the hosted service at `https://pingio.ioservices.io` (no server needed), or 
 **MCP server (Node.js)** — add to your MCP client (Claude Code, Claude Desktop, Cursor, ...):
 
 ```bash
-npm i -g @pingio/mcp-server
+npm i -g pingio-mcp-server
 ```
 
 Then register and connect (the MCP server speaks stdio, so drive it from your MCP client; set `PINGIO_CLOUD_ENDPOINT=https://pingio.ioservices.io` to use the hosted endpoint).
@@ -30,7 +30,7 @@ pingio send --to <user-id> --message "hello from python"
 ```
 ┌─────────────────┐      ┌───────────────────┐      ┌─────────────────┐
 │   MCP Client    │◄────►│    MCP Server     │◄────►│  Auth Server    │
-│ (Claude/Cursor/ │      │@pingio/mcp-server │      │ (OAuth2/OIDC    │
+│ (Claude/Cursor/ │      │pingio-mcp-server │      │ (OAuth2/OIDC    │
 │  Windsurf/etc.) │      │                   │      │   authority)    │
 └─────────────────┘      └───────────────────┘      └─────────────────┘
                                  │
@@ -51,7 +51,7 @@ The monorepo contains four packages:
 
 | Package | Path | Purpose |
 |---|---|---|
-| `@pingio/mcp-server` | `packages/mcp-server` | User-installed MCP server that exposes `register_user`, `send_message`, `create_channel`, etc. |
+| `pingio-mcp-server` | `packages/mcp-server` | User-installed MCP server that exposes `register_user`, `send_message`, `create_channel`, etc. |
 | `@pingio/auth-server` | `packages/auth-server` | Central OAuth2/OIDC authority. Issues RS256 access tokens and publishes a JWKS endpoint. |
 | `@pingio/relay-server` | `packages/relay-server` | Messaging relay with REST + WebSocket endpoints. Can run in `local` or `central` auth mode. |
 | `@pingio/shared` | `packages/shared` | Common types, schemas, constants, and utilities. |
@@ -145,7 +145,7 @@ Use the MCP server from the published npm package or from the local build. Add i
 {
   "pingio": {
     "command": "npx",
-    "args": ["-y", "@pingio/mcp-server"],
+    "args": ["-y", "pingio-mcp-server"],
     "env": {
       "PINGIO_MODE": "cloud",
       "PINGIO_CLOUD_ENDPOINT": "https://auth.yourdomain.com"
@@ -215,7 +215,7 @@ npm run test:integration
 # Unit tests per package
 npm run test --workspace=@pingio/auth-server
 npm run test --workspace=@pingio/relay-server
-npm run test --workspace=@pingio/mcp-server
+npm run test --workspace=pingio-mcp-server
 ```
 
 ## Option 3 — Managed Cloud Platforms
@@ -347,7 +347,7 @@ then enable it in `~/.codex/config.toml`:
 enabled = true
 ```
 
-The plugin launcher runs the published `npx -y @pingio/mcp-server`, or a local build automatically when used from a clone (`npm run build --workspace=@pingio/shared --workspace=@pingio/mcp-server`, then `claude --plugin-dir ./plugins/pingio`). Details: [plugins/pingio/README.md](plugins/pingio/README.md). Validate the packaging with `npm run test:plugin`.
+The plugin launcher runs the published `npx -y pingio-mcp-server`, or a local build automatically when used from a clone (`npm run build --workspace=@pingio/shared --workspace=pingio-mcp-server`, then `claude --plugin-dir ./plugins/pingio`). Details: [plugins/pingio/README.md](plugins/pingio/README.md). Validate the packaging with `npm run test:plugin`.
 
 ## MCP Client Configuration
 
@@ -369,7 +369,7 @@ Example Claude Desktop / Cursor / Windsurf config:
   "mcpServers": {
     "pingio": {
       "command": "npx",
-      "args": ["-y", "@pingio/mcp-server"],
+      "args": ["-y", "pingio-mcp-server"],
       "env": {
         "PINGIO_MODE": "cloud",
         "PINGIO_CLOUD_ENDPOINT": "https://auth.yourdomain.com"
@@ -386,7 +386,7 @@ For self-hosted:
   "mcpServers": {
     "pingio": {
       "command": "npx",
-      "args": ["-y", "@pingio/mcp-server"],
+      "args": ["-y", "pingio-mcp-server"],
       "env": {
         "PINGIO_MODE": "self-hosted",
         "PINGIO_SELF_HOSTED_RELAY_URL": "ws://localhost:5000/ws"
@@ -731,7 +731,7 @@ remains runnable per package as a fallback:
 npm run build --workspace=@pingio/shared
 npm run build --workspace=@pingio/auth-server
 npm run build --workspace=@pingio/relay-server
-npm run build --workspace=@pingio/mcp-server
+npm run build --workspace=pingio-mcp-server
 ```
 
 ## Running Tests
@@ -740,7 +740,7 @@ npm run build --workspace=@pingio/mcp-server
 # Unit tests
 npm run test --workspace=@pingio/auth-server     # 98 tests
 npm run test --workspace=@pingio/relay-server    # 206 tests
-npm run test --workspace=@pingio/mcp-server      # 267 tests
+npm run test --workspace=pingio-mcp-server      # 267 tests
 
 # Integration tests (Docker required)
 npm run test:integration                                # 29 tests

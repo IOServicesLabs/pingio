@@ -37,13 +37,13 @@ The plugin's launcher (`bin/launch.js`) resolves the server in this order:
 1. `PINGIO_MCP_ENTRY` env var — absolute path to a built `server.js`
 2. A sibling monorepo build at `packages/mcp-server/dist/server.js`
    (automatic when the plugin lives in a cloned pingio repo)
-3. `npx -y @pingio/mcp-server` — the published package
+3. `npx -y pingio-mcp-server` — the published package
 
 So from a clone:
 
 ```bash
 npm install
-npm run build --workspace=@pingio/shared --workspace=@pingio/mcp-server
+npm run build --workspace=@pingio/shared --workspace=pingio-mcp-server
 claude --plugin-dir ./plugins/pingio        # Claude Code dev load
 codex plugin marketplace add /path/to/pingio # Codex: add the clone as a local marketplace
 ```

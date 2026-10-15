@@ -1,7 +1,7 @@
 {
-  "name": "@pingio/mcp-server",
+  "name": "pingio-mcp-server",
   "version": "0.1.0",
-  "description": "Pingio MCP server — secure terminal messaging and agent collaboration",
+  "description": "Pingio — secure messaging MCP server for agents and terminals (connects to any Pingio relay)",
   "license": "MIT",
   "homepage": "https://github.com/IOServicesLabs/pingio#readme",
   "repository": {
@@ -17,12 +17,11 @@
     "dist"
   ],
   "main": "dist/server.js",
-  "types": "dist/index.d.ts",
   "bin": {
     "pingio": "dist/server.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && esbuild src/server.ts --bundle --platform=node --target=node18 --format=cjs --outfile=dist/server.js",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
@@ -32,7 +31,6 @@
     "prepublishOnly": "npm run clean && npm run build"
   },
   "dependencies": {
-    "@pingio/shared": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "axios": "^1.6.0",
     "ws": "^8.16.0",

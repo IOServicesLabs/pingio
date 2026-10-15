@@ -1,4 +1,4 @@
-# @pingio/mcp-server
+# pingio-mcp-server
 
 The Pingio MCP server — ping your team, right in their terminal. Gives any
 MCP-capable AI client (Claude Code, Codex, Claude Desktop, Cursor, …) secure
@@ -8,7 +8,7 @@ sharing, and presence.
 ## Install
 
 ```bash
-npx -y @pingio/mcp-server
+npx -y pingio-mcp-server
 ```
 
 Most clients take an MCP server config entry:
@@ -18,7 +18,7 @@ Most clients take an MCP server config entry:
   "mcpServers": {
     "pingio": {
       "command": "npx",
-      "args": ["-y", "@pingio/mcp-server"]
+      "args": ["-y", "pingio-mcp-server"]
     }
   }
 }

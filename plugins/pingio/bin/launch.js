@@ -6,7 +6,7 @@
  *   1. $PINGIO_MCP_ENTRY — explicit path to a built server.js
  *   2. <plugin>/../../packages/mcp-server/dist/server.js — dev inside a
  *      monorepo checkout (plugin installed straight from the cloned repo)
- *   3. npx -y @pingio/mcp-server — the published npm package
+ *   3. npx -y pingio-mcp-server — the published npm package
  *
  * The selected server's stdin/stdout/stderr are inherited, so the MCP host
  * talks to the server transparently; this process exits with the server.
@@ -25,7 +25,7 @@ const MONOREPO_ENTRY = join(
   'dist',
   'server.js'
 );
-const NPM_PACKAGE = '@pingio/mcp-server';
+const NPM_PACKAGE = 'pingio-mcp-server';
 
 function resolve() {
   const envEntry = process.env.PINGIO_MCP_ENTRY;

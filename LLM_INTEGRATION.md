@@ -46,7 +46,7 @@ Depending on the tool, you will need to give it the command and arguments requir
 
 **Or using NPX (if published or installed globally):**
 - **Command:** `npx`
-- **Args:** `["-y", "@pingio/mcp-server"]`
+- **Args:** `["-y", "pingio-mcp-server"]`
 
 ### 1. Claude Desktop
 
