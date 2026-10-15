@@ -3,9 +3,8 @@
 Usage::
 
     pingio register --username alice --password s3cret
-    pingio login --username alice --password s3cret
-    pingio whoami
-    pingio send --to <user-id> --message "hello from python"
+    pingio add-contact --username bob
+    pingio send --to bob --message "hello from python"
     pingio receive            # stream incoming frames until Ctrl+C
 """
 
@@ -51,8 +50,18 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("whoami", help="show the current token's identity")
     sub.add_parser("logout", help="remove stored credentials")
 
+    p_add = sub.add_parser("add-contact", help="add a user to your contacts")
+    p_add.add_argument("--username", required=True)
+
+    sub.add_parser("contacts", help="list your contacts")
+
     p_send = sub.add_parser("send", help="send a direct message")
-    p_send.add_argument("--to", dest="recipient_id", required=True, help="recipient user id")
+    p_send.add_argument(
+        "--to",
+        dest="recipient",
+        required=True,
+        help="recipient username (or user id for non-contacts)",
+    )
     p_send.add_argument("--message", required=True)
     p_send.add_argument(
         "--ephemeral",
@@ -107,10 +116,26 @@ def main(argv: list[str] | None = None) -> int:
             print("logged out")
             return 0
 
+        if args.command == "add-contact":
+            contact = client.add_contact(args.username)
+            print(f"added @{args.username} (id {contact.get('contactId') or contact.get('contact_id')})")
+            return 0
+
+        if args.command == "contacts":
+            contacts = client.list_contacts()
+            if not contacts:
+                print("no contacts yet — use `pingio add-contact --username <name>`")
+                return 0
+            for contact in contacts:
+                presence = (contact.get("presence") or {}).get("status") or "offline"
+                print(f"@{contact.get('username')}  {presence}  id={contact.get('contactId')}")
+            return 0
+
         if args.command == "send":
+            recipient_id = client.resolve_recipient(args.recipient)
             client.connect()
-            message = client.send_dm(args.recipient_id, args.message, is_ephemeral=args.ephemeral)
-            print(f"sent message {message.get('id')} to {args.recipient_id}")
+            message = client.send_dm(recipient_id, args.message, is_ephemeral=args.ephemeral)
+            print(f"sent message {message.get('id')} to @{args.recipient}")
             client.disconnect()
             return 0
 
@@ -125,7 +150,8 @@ def main(argv: list[str] | None = None) -> int:
                     print(json.dumps(frame))
                 elif frame.get("type") == "message":
                     msg = (frame.get("payload") or {}).get("message") or {}
-                    print(f"[DM] {msg.get('sender_id')}: {msg.get('content')}")
+                    sender = msg.get("senderUsername") or msg.get("senderId")
+                    print(f"[DM] {sender}: {msg.get('content')}")
                 else:
                     print(f"[{frame.get('type')}] {json.dumps(frame.get('payload'))}")
                 sys.stdout.flush()

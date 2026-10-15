@@ -116,7 +116,9 @@ export const PRESENCE_STATUSES = ['online', 'away', 'busy', 'offline'] as const;
 // Default config values
 export const DEFAULT_CONFIG = {
   mode: 'auto' as const,
-  cloudEndpoint: 'https://auth.pingio.io',
+  // Hosted service operated by IOServicesLabs — the default unless a
+  // deployment overrides it via PINGIO_CLOUD_ENDPOINT or the config file.
+  cloudEndpoint: 'https://pingio.ioservices.io',
   selfHosted: {
     relayUrl: 'ws://localhost:5000/ws',
     enableLocalP2P: true,

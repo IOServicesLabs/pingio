@@ -166,7 +166,7 @@ export class ConfigManager {
         return this.config.cloudRelayUrl;
       }
       // Fallback default; caller should run discoverRelayUrl for accurate value
-      return 'wss://relay.pingio.io/ws';
+      return 'wss://pingio.ioservices.io/ws';
     }
 
     // Self-hosted mode

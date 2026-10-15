@@ -2,28 +2,35 @@
 
 A messaging and communication system that operates inside LLM chat sessions and terminals using the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Pingio can run as a managed cloud service, a private self-hosted relay, or a fully local development stack.
 
-## Quick install
+## Send your first message (2 minutes)
 
-Use the hosted service at `https://pingio.ioservices.io` (no server needed), or point the clients at your own deployment (see [Deployment](#deployment-modes) below).
+Everything defaults to the hosted server at `https://pingio.ioservices.io` — no config, no server to run. (Self-hosting options are [below](#deployment-modes).)
 
-**MCP server (Node.js)** — add to your MCP client (Claude Code, Claude Desktop, Cursor, ...):
-
-```bash
-npm i -g pingio-mcp-server
-```
-
-Then register and connect (the MCP server speaks stdio, so drive it from your MCP client; set `PINGIO_CLOUD_ENDPOINT=https://pingio.ioservices.io` to use the hosted endpoint).
-
-**Python SDK / CLI**:
+**From your terminal:**
 
 ```bash
 pip install pingio
-pingio register --username you
-pingio whoami
-pingio send --to <user-id> --message "hello from python"
+
+# create your account
+python -m pingio register --username alice --password yourpassword
+
+# both of you run this for each other, then you can message
+python -m pingio add-contact --username bob
+
+python -m pingio send --to bob --message "hey bob!"
+python -m pingio receive   # wait for replies (Ctrl+C to quit)
 ```
 
-> Note: both installs provide a `pingio` command on your PATH. If you install both, use `python -m pingio ...` for the Python CLI to avoid the name collision.
+**From Claude Code (or any MCP client):**
+
+```bash
+npm i -g pingio-mcp-server
+claude mcp add pingio -- pingio
+```
+
+Then in the chat: `register_user` → `add_contact` → `send_message` → `get_history`.
+
+> Both installs ship a `pingio` command. If you install both, use `python -m pingio ...` for the Python CLI. To use your own relay instead of the hosted one, set `PINGIO_CLOUD_ENDPOINT` (MCP server) or `--auth-url/--relay-url` (Python CLI).
 
 ## Architecture
 

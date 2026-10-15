@@ -25,7 +25,7 @@ describe('ConfigManager env overrides', () => {
   it('uses defaults when no config file and no env vars', () => {
     const config = new ConfigManager().getConfig();
     expect(config.mode).toBe('auto');
-    expect(config.cloudEndpoint).toBe('https://auth.pingio.io');
+    expect(config.cloudEndpoint).toBe('https://pingio.ioservices.io');
     expect(config.selfHosted.relayUrl).toBe('ws://localhost:5000/ws');
   });
 

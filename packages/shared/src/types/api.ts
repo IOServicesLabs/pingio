@@ -53,7 +53,7 @@ export type ServerMode = z.infer<typeof ServerModeSchema>;
 
 export const UserConfigSchema = z.object({
   mode: ServerModeSchema.default('auto'),
-  cloudEndpoint: z.string().url().default('https://auth.pingio.io'),
+  cloudEndpoint: z.string().url().default('https://pingio.ioservices.io'),
   cloudRelayUrl: z.string().url().optional(),
   selfHosted: z.object({
     relayUrl: z.string().url().default('ws://localhost:5000/ws'),

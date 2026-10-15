@@ -23,7 +23,7 @@ from .constants import DEFAULT_AUTH_URL, DEFAULT_RELAY_WS_URL
 from .device import get_device_fingerprint, get_device_name
 from .errors import AuthError, NotConnectedError, PingioError, ProtocolError
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = [
     "PingioClient",
     "PingioError",

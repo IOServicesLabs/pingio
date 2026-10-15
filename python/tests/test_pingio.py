@@ -218,6 +218,57 @@ class TestPingioClient(unittest.TestCase):
             with self.assertRaises(AuthError):
                 client.whoami()
 
+    @mock.patch("urllib.request.urlopen")
+    def test_add_contact_uses_bearer_and_returns_contact(self, urlopen):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            urlopen.return_value = _http_response({"contact": {"contactId": "u2", "username": "bob"}})
+            client = self.make_client(f"{td}/config.json")
+            client._config = {"token": "tok"}
+            contact = client.add_contact("bob")
+            self.assertEqual(contact["contactId"], "u2")
+            request = urlopen.call_args[0][0]
+            self.assertEqual(request.full_url, "https://auth.example.com/api/contacts")
+            self.assertEqual(request.get_method(), "POST")
+            self.assertEqual(request.headers["Authorization"], "Bearer tok")
+
+    @mock.patch("urllib.request.urlopen")
+    def test_resolve_recipient_by_username(self, urlopen):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            urlopen.return_value = _http_response(
+                {"contacts": [{"contactId": "u2", "username": "bob"}]}
+            )
+            client = self.make_client(f"{td}/config.json")
+            client._config = {"token": "tok"}
+            self.assertEqual(client.resolve_recipient("bob"), "u2")
+            # bare UUIDs pass through untouched
+            self.assertEqual(client.resolve_recipient("11111111-2222-3333-4444-555555555555"),
+                             "11111111-2222-3333-4444-555555555555")
+
+    @mock.patch("urllib.request.urlopen")
+    def test_resolve_recipient_unknown_username(self, urlopen):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            urlopen.return_value = _http_response({"contacts": []})
+            client = self.make_client(f"{td}/config.json")
+            client._config = {"token": "tok"}
+            with self.assertRaises(ProtocolError) as ctx:
+                client.resolve_recipient("mallory")
+            self.assertIn("add-contact", str(ctx.exception))
+
+    @mock.patch("urllib.request.urlopen")
+    def test_contacts_requires_login(self, urlopen):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            client = self.make_client(f"{td}/config.json")
+            with self.assertRaises(AuthError):
+                client.list_contacts()
+
     @mock.patch("websocket.create_connection")
     def test_send_dm_success(self, create):
         import tempfile

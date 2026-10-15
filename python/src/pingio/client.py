@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import urllib.error
+import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any, Iterator
@@ -15,6 +18,11 @@ from .errors import AuthError, NotConnectedError, PingioError, ProtocolError
 from .ws import RelayConnection
 
 DEFAULT_CONFIG_PATH = Path.home() / ".pingio" / "python-config.json"
+_CONFIG_ENV_VAR = "PINGIO_CONFIG"
+
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+_UNSET: Any = object()
 
 PRESENCE_STATUSES = ("online", "away", "busy", "offline")
 
@@ -32,18 +40,26 @@ class PingioClient:
         ``wss://pingio.ioservices.io/ws``.
     config_path:
         Where to persist tokens between runs. Defaults to
-        ``~/.pingio/python-config.json``. Pass ``None`` to disable persistence.
+        ``~/.pingio/python-config.json`` (override with the
+        ``PINGIO_CONFIG`` environment variable). Pass ``None`` to disable
+        persistence.
     """
 
     def __init__(
         self,
         auth_url: str = DEFAULT_AUTH_URL,
         relay_ws_url: str = DEFAULT_RELAY_WS_URL,
-        config_path: Path | str | None = DEFAULT_CONFIG_PATH,
+        config_path: "Path | str | None | Any" = _UNSET,
         timeout: float = 30.0,
     ):
         self.auth_url = auth_url.rstrip("/")
         self.relay_ws_url = join_ws_url(relay_ws_url)
+        # The relay REST API (/api/*) is served from the same origin as the
+        # auth endpoints in the standard single-domain deployment.
+        self.rest_url = self.auth_url + "/api"
+        if config_path is _UNSET:
+            override = os.environ.get(_CONFIG_ENV_VAR)
+            config_path = Path(override) if override else DEFAULT_CONFIG_PATH
         self.config_path = Path(config_path) if config_path is not None else None
         self.timeout = timeout
         self._auth = AuthClient(self.auth_url, timeout=timeout)
@@ -165,6 +181,87 @@ class PingioClient:
             }
         )
         self._save_config()
+
+    # -- contacts (relay REST) ----------------------------------------------
+
+    def _require_token(self) -> str:
+        token = self.token
+        if not token:
+            raise AuthError("Not logged in — run register() or login() first")
+        return token
+
+    def _rest(
+        self,
+        path: str,
+        method: str = "GET",
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        url = f"{self.rest_url}{path}"
+        body = json.dumps(payload).encode("utf-8") if payload is not None else None
+        request = urllib.request.Request(
+            url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {self._require_token()}",
+            },
+            method=method,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            message = exc.reason or f"HTTP {exc.code}"
+            try:
+                data = json.loads(exc.read().decode("utf-8"))
+                if isinstance(data, dict) and data.get("error"):
+                    message = str(data["error"])
+            except Exception:
+                pass
+            raise ProtocolError(message) from exc
+        except urllib.error.URLError as exc:
+            raise ProtocolError(f"Cannot reach relay: {exc.reason}") from exc
+
+    def add_contact(self, username: str, custom_name: str | None = None) -> dict[str, Any]:
+        """Add a user to your contacts (required before you can DM them).
+
+        Returns the stored contact, including ``contactId`` — the id to use
+        as ``recipientId`` when messaging them.
+        """
+        payload: dict[str, Any] = {"username": username}
+        if custom_name:
+            payload["customName"] = custom_name
+        result = self._rest("/contacts", method="POST", payload=payload)
+        return result.get("contact") or {}
+
+    def list_contacts(self) -> list[dict[str, Any]]:
+        """Return your contacts (each with ``contactId``, ``username``, presence)."""
+        result = self._rest("/contacts")
+        return list(result.get("contacts") or [])
+
+    def resolve_contact(self, username: str) -> str | None:
+        """Return the ``contactId`` for a contact username, or ``None``."""
+        for contact in self.list_contacts():
+            if contact.get("username") == username:
+                cid = contact.get("contactId")
+                return str(cid) if cid else None
+        return None
+
+    def resolve_recipient(self, recipient: str) -> str:
+        """Resolve a ``--to`` value to a user id.
+
+        Bare UUIDs pass through unchanged; otherwise the value is looked up
+        among your contacts by username.
+        """
+        if _UUID_RE.match(recipient):
+            return recipient
+        contact_id = self.resolve_contact(recipient)
+        if not contact_id:
+            raise ProtocolError(
+                f"@{recipient} is not in your contacts — run `pingio add-contact --username {recipient}` first"
+            )
+        return contact_id
 
     # -- websocket -----------------------------------------------------------
 
