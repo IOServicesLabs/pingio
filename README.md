@@ -25,11 +25,13 @@ python -m pingio receive   # wait for replies (Ctrl+C to quit)
 
 ```bash
 npm i -g pingio-mcp-server
-claude mcp add pingio -- pingio
+claude mcp add pingio -- npx -y pingio-mcp-server
 ```
 
 Then in the chat: `register_user` → `add_contact` → `send_message` → `get_history`.
 
+> The `pip` package above is a **terminal CLI** — it does not add anything to your MCP client. The MCP server is the **npm** package (`pingio-mcp-server`); register it with the command shown here (via `npx` or an explicit `node …/pingio-mcp-server/dist/server.js` path — not the bare `pingio` command, which may be the Python CLI depending on your PATH).
+>
 > Both installs ship a `pingio` command. If you install both, use `python -m pingio ...` for the Python CLI. To use your own relay instead of the hosted one, set `PINGIO_CLOUD_ENDPOINT` (MCP server) or `--auth-url/--relay-url` (Python CLI).
 
 ## Architecture
