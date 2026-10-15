@@ -21,7 +21,16 @@ python -m pingio send --to bob --message "hey bob!"
 python -m pingio receive   # wait for replies (Ctrl+C to quit)
 ```
 
-**From Claude Code (or any MCP client):**
+**From Claude Code — install the plugin (recommended):**
+
+```bash
+claude plugin marketplace add IOServicesLabs/pingio
+claude plugin install pingio@pingio
+```
+
+This gives you the `pingio` MCP tools plus the **`/pingio:setup`** wizard (register/login/SSO walkthrough) and **`/pingio:status`** slash commands, and auto-registers the MCP server — no manual `claude mcp add` needed.
+
+**From any other MCP client:**
 
 ```bash
 npm i -g pingio-mcp-server
