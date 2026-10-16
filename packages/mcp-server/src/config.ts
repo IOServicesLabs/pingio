@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import type { UserConfig } from '@pingio/shared';
+import type { UserConfig, NotifyMode } from '@pingio/shared';
 import { UserConfigSchema, DEFAULT_CONFIG } from '@pingio/shared';
 
 const CONFIG_DIR = join(homedir(), '.pingio');
@@ -32,6 +32,8 @@ interface WellKnownPingio {
  *   PINGIO_SELF_HOSTED_RELAY_URL  e.g. ws://localhost:5000/ws
  *   PINGIO_SELF_HOSTED_AUTH_URL   e.g. https://relay.example.com
  *   PINGIO_ENABLE_LOCAL_P2P     1/true/yes enable; 0/false/no disable
+ *   PINGIO_NOTIFY               off | toast | sound | both (OS notifications)
+ *   PINGIO_NOTIFY_CHANNELS      1/true/yes enable; 0/false/no disable
  */
 function applyEnvOverrides(config: Record<string, unknown>): Record<string, unknown> {
   const env = process.env;
@@ -68,6 +70,31 @@ function applyEnvOverrides(config: Record<string, unknown>): Record<string, unkn
   }
   if (selfHostedTouched) {
     out.selfHosted = selfHosted;
+  }
+
+  if (env.PINGIO_NOTIFY) {
+    const preferences: Record<string, unknown> = {
+      ...(config.preferences as Record<string, unknown> | undefined),
+    };
+    const notify: Record<string, unknown> = {
+      ...((preferences.notify as Record<string, unknown> | undefined) ?? {}),
+    };
+    notify.mode = env.PINGIO_NOTIFY;
+    preferences.notify = notify;
+    out.preferences = preferences;
+  }
+  if (env.PINGIO_NOTIFY_CHANNELS !== undefined) {
+    const preferences: Record<string, unknown> = {
+      ...(out.preferences as Record<string, unknown> | undefined) ??
+        (config.preferences as Record<string, unknown> | undefined) ??
+        {},
+    };
+    const notify: Record<string, unknown> = {
+      ...((preferences.notify as Record<string, unknown> | undefined) ?? {}),
+    };
+    notify.channels = !['0', 'false', 'no'].includes(env.PINGIO_NOTIFY_CHANNELS.toLowerCase());
+    preferences.notify = notify;
+    out.preferences = preferences;
   }
 
   return out;
@@ -148,6 +175,16 @@ export class ConfigManager {
 
   setSelfHostedConfig(config: Partial<UserConfig['selfHosted']>): void {
     this.config.selfHosted = { ...this.config.selfHosted, ...config };
+    this.saveConfig();
+  }
+
+  setNotifyMode(mode: NotifyMode): void {
+    this.config.preferences.notify.mode = mode;
+    this.saveConfig();
+  }
+
+  setNotifyChannels(channels: boolean): void {
+    this.config.preferences.notify.channels = channels;
     this.saveConfig();
   }
 

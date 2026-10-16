@@ -63,6 +63,7 @@ Artifacts are files, not pasted text — pass paths, not contents.
 - If tools report "not connected to relay", the relay is unreachable — check the endpoint/mode, don't retry in a loop.
 - Errors are descriptive; success replies are terse (`✓ @alice`) by design — don't re-verify after a ✓.
 - Everything is snake_case tool names on the `pingio` MCP server; there is no REST fallback for DMs (WebSocket-only by design).
+- OS toasts/sounds for incoming DMs and collab events are **off by default**. Offer `configure_notifications(mode: "toast" | "sound" | "both", channels?)` when the user wants desktop alerts, or tell them to set `PINGIO_NOTIFY=both` / `PINGIO_NOTIFY_CHANNELS=1`. DMs always notify when enabled; channel messages only with `channels: true`.
 
 ## Latency — make pingio calls feel like API calls
 

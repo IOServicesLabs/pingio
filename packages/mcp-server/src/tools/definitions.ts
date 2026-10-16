@@ -786,6 +786,25 @@ export const TOOL_DEFINITIONS = [
       required: ['recipient'],
     },
   },
+  {
+    name: 'configure_notifications',
+    description:
+      'Show or change OS notification settings (toast/sound) for incoming Pingio messages and collab events. Call with no arguments to see current settings.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: {
+          type: 'string',
+          enum: ['off', 'toast', 'sound', 'both'],
+          description: 'off = silent, toast = popup, sound = chime, both',
+        },
+        channels: {
+          type: 'boolean',
+          description: 'Also notify for channel/group messages (default: DMs only)',
+        },
+      },
+    },
+  },
 
   // Device management tools
   {

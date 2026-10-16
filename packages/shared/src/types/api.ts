@@ -71,8 +71,17 @@ export const UserConfigSchema = z.object({
   preferences: z.object({
     defaultEphemeral: z.boolean().default(false),
     notifications: z.boolean().default(true),
+    // OS-level notification preferences (toast/sound). The legacy `notifications`
+    // boolean above remains the master switch; `notify.mode` picks the channel.
+    notify: z.object({
+      mode: z.enum(['off', 'toast', 'sound', 'both']).default('off'),
+      // Also notify for channel/group messages (DMs always notify when enabled).
+      channels: z.boolean().default(false),
+    }).default({}),
   }).default({}),
 });
+
+export type NotifyMode = 'off' | 'toast' | 'sound' | 'both';
 
 export type UserConfig = z.infer<typeof UserConfigSchema>;
 

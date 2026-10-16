@@ -13,6 +13,7 @@ import { storageService } from './services/storage.js';
 import { configManager } from './config.js';
 import { relayClient } from './services/relay.js';
 import { deviceService } from './services/device.js';
+import { notifyService } from './services/notify.js';
 import { startArtifactCleanup } from './services/artifact-cleanup.js';
 
 // Create MCP server
@@ -75,7 +76,10 @@ server.setRequestHandler(CallToolRequestSchema, (async (request: any) => {
 // Agent mode: incoming messages can trigger an autonomous agent turn
 const agentService = new AgentService(server, relayClient, storageService, configManager);
 setAgentService(agentService);
-relayClient.on('message:received', (message) => agentService.handleIncomingMessage(message));
+relayClient.on('message:received', (message) => {
+  agentService.handleIncomingMessage(message);
+  notifyService.messageReceived(message);
+});
 
 // Live collab inbox: context shares, requests and revokes surface as MCP log
 // notifications so you see teammates' work snapshots without polling.
@@ -85,6 +89,7 @@ relayClient.on('collab:context_share', (share) => {
   notifyCollab(
     `📋 @${share.username} shared context with ${where}: [${share.status}] ${share.summary}${files} — use get_shared_context to view`
   );
+  notifyService.collabEvent('context shared', `@${share.username}: ${share.summary}${files}`);
 });
 relayClient.on('collab:context_request', (payload) => {
   const where = payload.channelId ? `channel ${payload.channelId}` : 'your DM';
@@ -92,10 +97,12 @@ relayClient.on('collab:context_request', (payload) => {
   notifyCollab(
     `📋 @${payload.requesterUsername ?? payload.requesterId} requests current context in ${where}${target} — use share_context to respond`
   );
+  notifyService.collabEvent('context requested', `@${payload.requesterUsername ?? payload.requesterId} in ${where}`);
 });
 relayClient.on('collab:context_revoke', (payload) => {
   const where = payload.channelId ? `channel ${payload.channelId}` : 'your DM';
   notifyCollab(`📋 @${payload.username ?? payload.userId} stopped sharing context in ${where}`);
+  notifyService.collabEvent('context revoked', `@${payload.username ?? payload.userId} in ${where}`);
 });
 
 // Periodically clean up stale build-group artifact directories

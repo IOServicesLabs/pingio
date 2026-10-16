@@ -17,6 +17,7 @@ import {
   setChannelRetention,
 } from './channels.js';
 import { setStatus, getUserStatus, typing } from './presence.js';
+import { configureNotifications } from './notifications.js';
 import { listDevices, verifyDevice, revokeDevice } from './devices.js';
 import {
   enableAgentMode,
@@ -154,6 +155,13 @@ export async function dispatchTool(name: string, args: Record<string, unknown>):
       return await getUserStatus(args.username as string);
     case 'typing':
       return await typing(args.recipient as string, args.isTyping as boolean | undefined);
+
+    // Notifications
+    case 'configure_notifications':
+      return await configureNotifications(
+        args.mode as 'off' | 'toast' | 'sound' | 'both' | undefined,
+        args.channels as boolean | undefined
+      );
 
     // Devices
     case 'list_devices':

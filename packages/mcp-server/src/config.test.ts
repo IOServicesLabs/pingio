@@ -87,6 +87,24 @@ describe('ConfigManager env overrides', () => {
     expect(manager.getEffectiveRelayUrl()).toBe('wss://relay.example.com/ws');
   });
 
+  it('applies PINGIO_NOTIFY and PINGIO_NOTIFY_CHANNELS over the defaults', () => {
+    vi.stubEnv('PINGIO_NOTIFY', 'both');
+    vi.stubEnv('PINGIO_NOTIFY_CHANNELS', 'true');
+
+    const config = new ConfigManager().getConfig();
+    expect(config.preferences.notify.mode).toBe('both');
+    expect(config.preferences.notify.channels).toBe(true);
+  });
+
+  it('PINGIO_NOTIFY_CHANNELS accepts negative spellings', () => {
+    vi.stubEnv('PINGIO_NOTIFY_CHANNELS', 'no');
+
+    const config = new ConfigManager().getConfig();
+    expect(config.preferences.notify.channels).toBe(false);
+    // mode stays at its default
+    expect(config.preferences.notify.mode).toBe('off');
+  });
+
   it('falls back to defaults with a clear error when an env var is invalid', () => {
     vi.stubEnv('PINGIO_MODE', 'not-a-mode');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
