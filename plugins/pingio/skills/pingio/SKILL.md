@@ -63,3 +63,12 @@ Artifacts are files, not pasted text — pass paths, not contents.
 - If tools report "not connected to relay", the relay is unreachable — check the endpoint/mode, don't retry in a loop.
 - Errors are descriptive; success replies are terse (`✓ @alice`) by design — don't re-verify after a ✓.
 - Everything is snake_case tool names on the `pingio` MCP server; there is no REST fallback for DMs (WebSocket-only by design).
+
+## Latency — make pingio calls feel like API calls
+
+Pingio tool calls are cheap, idempotent, and safe — treat them like local API calls, not decisions:
+
+- **Call immediately.** Don't deliberate or plan before a pingio tool call; the parameters are already known. Thinking before `send_message`/`list_contacts`/`get_history` adds seconds for zero value.
+- **Batch in parallel.** Independent calls go in ONE block (e.g. `whoami` + `list_contacts` + `list_channels` together), not one-by-one turns.
+- **No narration.** Don't preface pingio calls with a sentence of text and don't summarize after a terse `✓` reply.
+- Read-only status calls (`whoami`, `list_*`, `get_*`) are especially cheap — use them freely instead of reasoning about state.
