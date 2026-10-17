@@ -27,29 +27,44 @@ function psQuote(text: string): string {
   return `'${psEscape(text)}'`;
 }
 
+// XML-escape text destined for the toast XML payload.
+function xmlEscape(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 // UTF-16LE base64, the robust way to hand a script to powershell.exe without
 // quoting/escaping surprises.
 function encodePs(script: string): string {
   return Buffer.from(script, 'utf16le').toString('base64');
 }
 
-// Windows toast via System.Windows.Forms.NotifyIcon balloon (routed to the
-// notification center on Win10/11). Kept alive briefly so the balloon renders.
+// Windows toast via Windows.UI.Notifications (WinRT) — the same pipeline real
+// apps use, so it lands in the notification center with attribution and plays
+// the system notification sound via the <audio> element. Requires
+// powershell.exe (5.1, ships with Windows): its .NET Framework runtime has
+// the WinRT type bridge; pwsh 7 does not.
+const WINDOWS_TOAST_APP_ID = 'IOServicesLabs.Pingio';
+
 function windowsToastScript(title: string, body: string): string {
+  const xml =
+    `<toast><visual><binding template="ToastGeneric">` +
+    `<text>${xmlEscape(title)}</text><text>${xmlEscape(body)}</text>` +
+    `</binding></visual><audio src="ms-winsoundevent:Notification.Default"/></toast>`;
   return [
-    'Add-Type -AssemblyName System.Windows.Forms',
-    '$n = New-Object System.Windows.Forms.NotifyIcon',
-    '$n.Icon = [System.Drawing.SystemIcons]::Information',
-    `$n.BalloonTipTitle = ${psQuote(title)}`,
-    `$n.BalloonTipText = ${psQuote(body)}`,
-    '$n.Visible = $true',
-    '$n.ShowBalloonTip(4000)',
-    'Start-Sleep -Seconds 5',
-    '$n.Dispose()',
-  ].join(';');
+    '[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null',
+    '[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null',
+    '$xml = [Windows.Data.Xml.Dom.XmlDocument]::new()',
+    `$xml.LoadXml(${psQuote(xml)})`,
+    '$toast = [Windows.UI.Notifications.ToastNotification]::new($xml)',
+    `[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(${psQuote(WINDOWS_TOAST_APP_ID)}).Show($toast)`,
+  ].join('; ');
 }
 
-// Windows system sound; the process must outlive the async .Play() briefly.
+// Windows system sound for sound-only mode; the process must outlive the
+// async .Play() briefly.
 function windowsSoundScript(): string {
   return "[System.Media.SystemSounds]::Asterisk.Play(); Start-Sleep -Milliseconds 800";
 }
@@ -103,12 +118,8 @@ export class NotifyService {
 
     switch (process.platform) {
       case 'win32': {
-        if (wantToast && wantSound) {
-          this.run('powershell.exe', [
-            '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand',
-            encodePs(`${windowsSoundScript()}; ${windowsToastScript(title, body)}`),
-          ]);
-        } else if (wantToast) {
+        // The WinRT toast carries its own <audio>, so 'both' = one spawn.
+        if (wantToast) {
           this.run('powershell.exe', [
             '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand',
             encodePs(windowsToastScript(title, body)),

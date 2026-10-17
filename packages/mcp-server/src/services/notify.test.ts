@@ -84,16 +84,31 @@ describe('NotifyService', () => {
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 
-  it('fires one powershell toast+sound for a DM from someone else', () => {
+  it('fires one powershell WinRT toast (with audio) for a DM in "both" mode', () => {
     new NotifyService().messageReceived(makeMessage({ content: 'deploy is live' }));
 
     expect(mockedSpawn).toHaveBeenCalledTimes(1);
     expect(mockedSpawn.mock.calls[0][0]).toBe('powershell.exe');
     const script = decodedCommand();
-    expect(script).toContain('NotifyIcon'); // toast
-    expect(script).toContain('SystemSounds'); // sound
+    expect(script).toContain('ToastNotification'); // WinRT toast
+    expect(script).toContain('ms-winsoundevent'); // sound baked into the toast
+    expect(script).toContain('IOServicesLabs.Pingio');
     expect(script).toContain('@alice');
     expect(script).toContain('deploy is live');
+  });
+
+  it('XML-escapes angle brackets in message content', () => {
+    new NotifyService().messageReceived(makeMessage({ content: 'check <this> & that' }));
+    const script = decodedCommand();
+    expect(script).toContain('check &lt;this&gt; &amp; that');
+  });
+
+  it('sound-only mode spawns the chime without a toast', () => {
+    getConfigSpy.mockReturnValue(makeConfig({ mode: 'sound' }));
+    new NotifyService().messageReceived(makeMessage());
+    const script = decodedCommand();
+    expect(script).toContain('SystemSounds');
+    expect(script).not.toContain('ToastNotification');
   });
 
   it('escapes single quotes in message content for PowerShell', () => {
