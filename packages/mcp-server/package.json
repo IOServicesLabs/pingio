@@ -1,6 +1,6 @@
 {
   "name": "pingio-mcp-server",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Pingio — secure messaging MCP server for agents and terminals (connects to any Pingio relay)",
   "license": "MIT",
   "homepage": "https://github.com/IOServicesLabs/pingio#readme",
