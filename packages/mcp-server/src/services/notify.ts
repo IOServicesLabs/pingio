@@ -46,6 +46,10 @@ function encodePs(script: string): string {
 // the system notification sound via the <audio> element. Requires
 // powershell.exe (5.1, ships with Windows): its .NET Framework runtime has
 // the WinRT type bridge; pwsh 7 does not.
+//
+// Win11 silently drops toasts from unregistered app IDs, so the script first
+// registers our AUMID under HKCU\Software\Classes\AppUserModelId (idempotent,
+// no admin, no shortcut file needed).
 const WINDOWS_TOAST_APP_ID = 'IOServicesLabs.Pingio';
 
 function windowsToastScript(title: string, body: string): string {
@@ -54,6 +58,8 @@ function windowsToastScript(title: string, body: string): string {
     `<text>${xmlEscape(title)}</text><text>${xmlEscape(body)}</text>` +
     `</binding></visual><audio src="ms-winsoundevent:Notification.Default"/></toast>`;
   return [
+    `New-Item -Path ${psQuote(`HKCU:\\Software\\Classes\\AppUserModelId\\${WINDOWS_TOAST_APP_ID}`)} -Force | Out-Null`,
+    `New-ItemProperty -Path ${psQuote(`HKCU:\\Software\\Classes\\AppUserModelId\\${WINDOWS_TOAST_APP_ID}`)} -Name DisplayName -Value 'Pingio' -PropertyType String -Force | Out-Null`,
     '[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null',
     '[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null',
     '$xml = [Windows.Data.Xml.Dom.XmlDocument]::new()',
