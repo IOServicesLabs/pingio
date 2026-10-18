@@ -78,7 +78,9 @@ export async function login(username: string, password: string): Promise<ToolRes
       return { content: [{ type: 'text', text: `Login failed: ${result.error}` }], isError: true };
     }
 
-    const user = result.user;
+    // Cloud auth returns a bare userId; self-hosted relays return a user
+    // object. Accept either so login works against both (and older servers).
+    const user = result.user ?? (result.userId ? { id: result.userId, username } : undefined);
     const { token, refreshToken, deviceId } = result;
     if (!token || !user) {
       return { content: [{ type: 'text', text: 'Login failed: server returned incomplete response' }], isError: true };

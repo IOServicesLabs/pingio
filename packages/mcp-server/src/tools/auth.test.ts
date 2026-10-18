@@ -47,13 +47,21 @@ vi.mock('../services/auth-client.js', () => ({
   }),
   login: vi.fn(async (username: string, password: string) => {
     const { default: axios } = await import('axios');
-    const response = await axios.post('http://localhost:3000/api/auth/login', {
-      username,
-      password,
-      deviceFingerprint: 'fp-test',
-      deviceName: 'Test Device',
-    });
-    return response.data;
+    try {
+      const response = await axios.post('http://localhost:3000/api/auth/login', {
+        username,
+        password,
+        deviceFingerprint: 'fp-test',
+        deviceName: 'Test Device',
+      });
+      return response.data;
+    } catch (error: any) {
+      // Mirror the real auth-client: surface the server's error payload.
+      if (axios.isAxiosError(error) && error.response?.data) {
+        return error.response.data;
+      }
+      return { success: false, error: (error as Error).message };
+    }
   }),
 }));
 
@@ -151,6 +159,50 @@ describe('Auth tools', () => {
       );
       expect(relayClient.connect).toHaveBeenCalled();
       expect(result.isError).toBeUndefined();
+    });
+
+    it('succeeds with a bare userId when the server omits the user object (cloud shape)', async () => {
+      // Cloud /oauth/login returns userId but no user — login must still work.
+      mockAxiosPost.mockResolvedValue({
+        data: {
+          success: true,
+          userId: 'u1',
+          token: 'access-tok',
+          refreshToken: 'refresh-tok',
+          deviceId: 'd1',
+        },
+      });
+      mockAxiosGet.mockResolvedValue({ data: { contacts: [] } });
+
+      const { login } = await import('./auth.js');
+      const result = await login('alice', 'Password1!');
+
+      expect(result.isError).toBeUndefined();
+      expect(configManager.setIdentity).toHaveBeenCalledWith(
+        'alice', 'access-tok', 'u1', 'refresh-tok', 'd1'
+      );
+      expect(result.content[0].text).toContain('Successfully logged in as "alice"');
+    });
+
+    it('prompts for device verification when the server requires it', async () => {
+      mockAxiosPost.mockRejectedValue(Object.assign(new Error('Forbidden'), {
+        isAxiosError: true,
+        response: {
+          data: {
+            success: false,
+            verificationRequired: true,
+            deviceId: 'dev-9',
+            error: 'Device verification required',
+          },
+        },
+      }));
+
+      const { login } = await import('./auth.js');
+      const result = await login('alice', 'Password1!');
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Login from new device detected');
+      expect(result.content[0].text).toContain('verify_device(deviceId="dev-9")');
     });
   });
 

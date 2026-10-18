@@ -317,6 +317,9 @@ async function main() {
       token: result.token,
       refreshToken: result.refreshToken,
       deviceId: result.deviceId,
+      // Include the user object — self-hosted relays return it and MCP
+      // clients expect it; without it login reports "incomplete response".
+      user: result.user,
     };
   });
 
@@ -362,6 +365,9 @@ async function main() {
       token: result.token,
       refreshToken: result.refreshToken,
       deviceId: result.deviceId,
+      // Include the user object — self-hosted relays return it and MCP
+      // clients expect it; without it login reports "incomplete response".
+      user: result.user,
     };
   });
 
