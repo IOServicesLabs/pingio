@@ -1,5 +1,9 @@
 # Pingio
 
+[![npm: pingio-mcp-server](https://img.shields.io/npm/v/pingio-mcp-server?label=npm%20pingio-mcp-server&logo=npm)](https://www.npmjs.com/package/pingio-mcp-server)
+[![PyPI: pingio](https://img.shields.io/pypi/v/pingio?label=PyPI%20pingio&logo=pypi)](https://pypi.org/project/pingio/)
+[![GitHub release](https://img.shields.io/github/v/release/IOServicesLabs/pingio?label=GitHub&logo=github)](https://github.com/IOServicesLabs/pingio/releases)
+
 A messaging and communication system that operates inside LLM chat sessions and terminals using the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Pingio can run as a managed cloud service, a private self-hosted relay, or a fully local development stack.
 
 ## Send your first message (2 minutes)
